@@ -317,9 +317,8 @@ EMOJI = [
 # Варианты фона для чата. Сами цвета и узоры заданы в style.css (классы bg-<имя>).
 BACKGROUNDS = [
     "default", "gray", "blue", "green", "pink", "yellow",
-    "sky", "sunset", "mint", "dots",
-    "stripes", "diag", "cross", "checks", "grid",
-    "hearts", "stars", "plus",
+    "sky", "sunset", "mint",
+    "aurora", "ocean", "peach", "lavender", "berry", "dawn", "forest",
 ]
 
 

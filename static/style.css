@@ -407,6 +407,71 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
   background-size: 18px 18px;
 }
 
+/* ===== Плавные фоны-«пятна»: не повторяются, мягко переливаются ===== */
+.bg-aurora {
+  background:
+    radial-gradient(60% 50% at 15% 15%, rgba(129, 140, 248, 0.55), transparent 72%),
+    radial-gradient(55% 45% at 85% 22%, rgba(244, 114, 182, 0.48), transparent 72%),
+    radial-gradient(62% 55% at 50% 92%, rgba(56, 189, 248, 0.45), transparent 74%),
+    linear-gradient(180deg, #f8faff, #eef3ff);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.bg-ocean {
+  background:
+    radial-gradient(65% 55% at 20% 25%, rgba(45, 212, 191, 0.45), transparent 72%),
+    radial-gradient(55% 50% at 80% 30%, rgba(59, 130, 246, 0.42), transparent 72%),
+    radial-gradient(62% 60% at 55% 95%, rgba(125, 211, 252, 0.45), transparent 74%),
+    linear-gradient(180deg, #f2fdfb, #eaf4ff);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.bg-peach {
+  background:
+    radial-gradient(62% 55% at 18% 20%, rgba(251, 146, 60, 0.42), transparent 72%),
+    radial-gradient(56% 50% at 82% 28%, rgba(244, 114, 182, 0.40), transparent 72%),
+    radial-gradient(62% 55% at 50% 95%, rgba(252, 211, 77, 0.40), transparent 74%),
+    linear-gradient(180deg, #fffaf3, #fff2f6);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.bg-lavender {
+  background:
+    radial-gradient(62% 55% at 20% 20%, rgba(167, 139, 250, 0.48), transparent 72%),
+    radial-gradient(56% 50% at 82% 30%, rgba(196, 181, 253, 0.50), transparent 72%),
+    radial-gradient(62% 55% at 50% 95%, rgba(129, 140, 248, 0.38), transparent 74%),
+    linear-gradient(180deg, #faf8ff, #f1f0ff);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.bg-berry {
+  background:
+    radial-gradient(62% 55% at 18% 22%, rgba(236, 72, 153, 0.40), transparent 72%),
+    radial-gradient(56% 50% at 82% 28%, rgba(168, 85, 247, 0.40), transparent 72%),
+    radial-gradient(62% 55% at 55% 95%, rgba(244, 114, 182, 0.35), transparent 74%),
+    linear-gradient(180deg, #fff7fb, #f8f1ff);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.bg-dawn {
+  background:
+    radial-gradient(62% 55% at 18% 22%, rgba(253, 186, 116, 0.45), transparent 72%),
+    radial-gradient(56% 50% at 82% 26%, rgba(244, 114, 182, 0.38), transparent 72%),
+    radial-gradient(62% 55% at 50% 95%, rgba(147, 197, 253, 0.40), transparent 74%),
+    linear-gradient(180deg, #fff9f2, #f4f8ff);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.bg-forest {
+  background:
+    radial-gradient(62% 55% at 20% 22%, rgba(52, 211, 153, 0.42), transparent 72%),
+    radial-gradient(56% 50% at 82% 30%, rgba(34, 197, 94, 0.38), transparent 72%),
+    radial-gradient(62% 55% at 50% 95%, rgba(45, 212, 191, 0.35), transparent 74%),
+    linear-gradient(180deg, #f3fff9, #eef8ff);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
 /* Имя автора в групповом сообщении */
 .sender { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
 
@@ -527,7 +592,7 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
 .theme-dark .bg-default { background: linear-gradient(180deg, #141d30, #0f1728); }
 .theme-dark .avatar.img { background: #121c2e; }
 
-/* В тёмной теме фон приложения всегда тёмный (светлые узоры не годятся) */
+/* В тёмной теме фон приложения всегда тёмный (светлые фоны не годятся) */
 .theme-dark.bg-gray,
 .theme-dark.bg-blue,
 .theme-dark.bg-green,
@@ -536,13 +601,32 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
 .theme-dark.bg-sky,
 .theme-dark.bg-sunset,
 .theme-dark.bg-mint,
-.theme-dark.bg-dots,
-.theme-dark.bg-stripes,
-.theme-dark.bg-diag,
-.theme-dark.bg-cross,
-.theme-dark.bg-checks,
-.theme-dark.bg-grid,
-.theme-dark.bg-hearts,
-.theme-dark.bg-stars,
-.theme-dark.bg-plus { background: var(--bg); }
+.theme-dark.bg-aurora,
+.theme-dark.bg-ocean,
+.theme-dark.bg-peach,
+.theme-dark.bg-lavender,
+.theme-dark.bg-berry,
+.theme-dark.bg-dawn,
+.theme-dark.bg-forest { background: var(--bg); }
 .theme-dark.bg-default { background: linear-gradient(180deg, #141d30, #0f1728); }
+
+/* В тёмной теме фон чатов тоже делаем тёмным */
+.theme-dark .bg-gray,
+.theme-dark .bg-blue,
+.theme-dark .bg-green,
+.theme-dark .bg-pink,
+.theme-dark .bg-yellow,
+.theme-dark .bg-sky,
+.theme-dark .bg-sunset,
+.theme-dark .bg-mint,
+.theme-dark .bg-aurora,
+.theme-dark .bg-ocean,
+.theme-dark .bg-peach,
+.theme-dark .bg-lavender,
+.theme-dark .bg-berry,
+.theme-dark .bg-dawn,
+.theme-dark .bg-forest {
+  background: linear-gradient(180deg, #141d30, #0f1728);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
