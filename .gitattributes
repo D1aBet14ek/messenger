@@ -1,0 +1,5 @@
+# Правила «переводов строк», чтобы файлы одинаково читались на Windows и на Linux-сервере.
+# Для обычных файлов — как в Linux (LF). Для .bat оставляем вид Windows (CRLF).
+
+* text=auto eol=lf
+*.bat text eol=crlf
