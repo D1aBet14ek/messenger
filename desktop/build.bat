@@ -19,7 +19,9 @@ echo [2/4] Готовлю иконку...
 
 echo.
 echo [3/4] Собираю программу (1-2 минуты)...
-%PY% -m PyInstaller --noconfirm --onefile --windowed --name Pogovorim --icon=app.ico desktop_app.py
+rem Собираем в режиме --console (окно консоли программа прячет сама),
+rem потому что антивирус часто блокирует «оконный» загрузчик PyInstaller (runw.exe).
+%PY% -m PyInstaller --noconfirm --onefile --console --name Pogovorim --icon=app.ico desktop_app.py
 
 echo.
 echo [4/4] Копирую готовый файл...

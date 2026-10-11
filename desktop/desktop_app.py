@@ -21,11 +21,22 @@ from tkinter import messagebox, simpledialog
 import webview
 
 # === Версия программы (меняй вместе с desktop/version.txt на сервере) ===
-VERSION = "1.0"
+VERSION = "1.1"
 
 # === Адрес твоего мессенджера ===
 # Если здесь пусто — программа спросит адрес один раз и запомнит.
 DEFAULT_ADDRESS = "https://messenger.d1abet14ek.corray.ru"
+
+
+def hide_console():
+    """Прячем чёрное окно консоли (нужно при сборке без «оконного» загрузчика)."""
+    try:
+        import ctypes
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
+    except Exception:
+        pass
 
 
 def base_dir():
@@ -184,6 +195,7 @@ def check_and_offer_update(base_url):
 # Запуск
 # ---------------------------------------------------------------------------
 def main():
+    hide_console()
     create_desktop_shortcut()
     url = load_address()
     if not url:
@@ -194,7 +206,7 @@ def main():
         os._exit(0)
 
     webview.create_window(
-        "Поговорим", url, width=1000, height=760, min_size=(420, 560)
+        "Поговорим", url, width=1200, height=800, min_size=(420, 560), maximized=True
     )
     # private_mode=False + storage_path — чтобы вход сохранялся между запусками.
     # Папку берём в системных данных пользователя, а не рядом с программой.
