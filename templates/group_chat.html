@@ -23,6 +23,18 @@
       <span class="plogin">{% if online_count %}{{ online_count }} в сети{% else %}никого в сети{% endif %}</span>
     </div>
 
+    {% if pinned %}
+      <div class="pinned-bar">
+        📌 <b>{{ pinned['sender'] }}:</b>
+        <span class="pinned-text">{{ pinned['body'] }}</span>
+        {% if is_admin %}
+          <form method="post" action="{{ url_for('group_unpin', group_id=group['id']) }}" class="inline-form">
+            <button class="btn small ghost" type="submit">Открепить</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+
     <div id="messages" class="messages bg-{{ background }}"></div>
 
     {% if can_write %}
@@ -61,7 +73,7 @@
               <span class="pname">{{ m['display_name'] }}
                 {% if m['role'] == 'admin' %}<span class="badge">админ</span>{% endif %}
                 {% if m['muted'] %}<span class="badge muted">заглушён</span>{% endif %}</span>
-              <span class="plogin">@{{ m['username'] }}</span>
+              <span class="plogin">@{{ m['username'] }} · {{ m['msg_count'] }} сообщ.</span>
             </span>
             {% if is_admin and m['user_id'] != group['created_by'] %}
               <span class="member-actions">
@@ -107,6 +119,14 @@
             <select name="info_mode">
               <option value="all" {% if (group['info_mode'] or 'admins') == 'all' %}selected{% endif %}>Все участники</option>
               <option value="admins" {% if (group['info_mode'] or 'admins') == 'admins' %}selected{% endif %}>Только админы</option>
+            </select>
+          </label>
+          <label>Медленный режим (пауза между сообщениями)
+            <select name="slow_mode">
+              <option value="0" {% if not group['slow_mode'] %}selected{% endif %}>Выключен</option>
+              <option value="10" {% if group['slow_mode'] == 10 %}selected{% endif %}>10 секунд</option>
+              <option value="30" {% if group['slow_mode'] == 30 %}selected{% endif %}>30 секунд</option>
+              <option value="60" {% if group['slow_mode'] == 60 %}selected{% endif %}>60 секунд</option>
             </select>
           </label>
           <button class="btn" type="submit">Сохранить настройки</button>
@@ -180,6 +200,7 @@
 
 <script>
   var box = document.getElementById("messages");
+  var isAdmin = {{ 'true' if is_admin else 'false' }};
   function esc(text) {
     var d = document.createElement("div");
     d.textContent = text == null ? "" : text;
@@ -196,7 +217,12 @@
       html += '<div class="msg ' + (m.mine ? "mine" : "theirs") + '">';
       if (m.sender && !m.mine) html += '<div class="sender">' + esc(m.sender) + '</div>';
       html += '<div class="bubble">' + esc(m.body) + '</div>';
-      html += '<div class="time">' + esc(m.time) + '</div></div>';
+      html += '<div class="time">' + esc(m.time) + '</div>';
+      if (isAdmin) {
+        html += '<form class="pin-form" method="post" action="/groups/{{ group['id'] }}/pin/' + m.id + '">'
+             + '<button class="pin-btn" type="submit" title="Закрепить">📌</button></form>';
+      }
+      html += '</div>';
     }
     box.innerHTML = html;
   }

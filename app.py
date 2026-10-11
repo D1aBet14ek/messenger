@@ -195,6 +195,8 @@ groups_table = Table(
     Column("write_mode", String(10)),   # "all" — пишут все, "admins" — только админы
     Column("add_mode", String(10)),     # "all" — добавлять могут все, "admins" — только админы
     Column("info_mode", String(10)),    # кто может менять информацию группы
+    Column("pinned_message_id", Integer),  # закреплённое сообщение
+    Column("slow_mode", Integer),          # медленный режим (секунды между сообщениями)
     Column("photo", LargeBinary),       # картинка группы
     Column("photo_mime", String(50)),
 )
@@ -242,6 +244,8 @@ def ensure_columns():
             "add_mode": "VARCHAR(10)",
             "info_mode": "VARCHAR(10)",
             "description": "TEXT",
+            "pinned_message_id": "INTEGER",
+            "slow_mode": "INTEGER",
             "photo": blob_type,
             "photo_mime": "VARCHAR(50)",
         },
@@ -361,6 +365,27 @@ def is_online(last_seen):
 
 
 app.jinja_env.globals["is_online"] = is_online
+
+
+def slow_mode_blocks(conn, group_id, user_id, seconds):
+    """True, если с последнего сообщения человека в группе прошло меньше seconds."""
+    if not seconds:
+        return False
+    last = conn.execute(
+        select(func.max(group_messages_table.c.created_at)).where(
+            and_(
+                group_messages_table.c.group_id == group_id,
+                group_messages_table.c.sender_id == user_id,
+            )
+        )
+    ).scalar()
+    if not last:
+        return False
+    try:
+        dt = datetime.fromisoformat(last)
+    except (ValueError, TypeError):
+        return False
+    return (datetime.now() - dt).total_seconds() < seconds
 
 
 def normalize_phone(raw):
@@ -1253,6 +1278,7 @@ def group_conversation(conn, group_id, me_id):
     """Сообщения группы по порядку, вместе с именами авторов."""
     rows = conn.execute(
         select(
+            group_messages_table.c.id,
             group_messages_table.c.sender_id,
             group_messages_table.c.body,
             group_messages_table.c.created_at,
@@ -1268,6 +1294,7 @@ def group_conversation(conn, group_id, me_id):
     ).mappings().all()
     return [
         {
+            "id": row["id"],
             "mine": row["sender_id"] == me_id,
             "body": row["body"],
             "time": format_time(row["created_at"]),
@@ -1384,6 +1411,10 @@ def group_chat(group_id):
         elif (group["write_mode"] or "all") == "admins" and membership["role"] != "admin":
             flash("В этой группе писать могут только админы.")
             session[draft_key] = raw[:2000]
+        elif (membership["role"] != "admin"
+              and slow_mode_blocks(conn, group_id, me["id"], group["slow_mode"] or 0)):
+            flash("Медленный режим: подожди немного перед следующим сообщением.")
+            session[draft_key] = raw[:2000]
         elif len(body) > 2000:
             flash("Слишком длинное сообщение (максимум 2000 символов).")
             session[draft_key] = raw[:2000]
@@ -1420,6 +1451,18 @@ def group_chat(group_id):
         .where(group_members_table.c.group_id == group_id)
         .order_by(group_members_table.c.role, func.lower(users_table.c.display_name))
     ).mappings().all()
+    members = [dict(m) for m in members]
+    for m in members:
+        m["msg_count"] = conn.execute(
+            select(func.count())
+            .select_from(group_messages_table)
+            .where(
+                and_(
+                    group_messages_table.c.group_id == group_id,
+                    group_messages_table.c.sender_id == m["user_id"],
+                )
+            )
+        ).scalar() or 0
 
     # Друзья, которых ещё нет в группе (чтобы админ мог добавить)
     member_ids = {m["user_id"] for m in members}
@@ -1432,6 +1475,31 @@ def group_chat(group_id):
             .order_by(func.lower(users_table.c.display_name))
         ).mappings().all()
 
+    # Закреплённое сообщение (если есть)
+    pinned = None
+    if group["pinned_message_id"]:
+        p = conn.execute(
+            select(
+                group_messages_table.c.id,
+                group_messages_table.c.body,
+                group_messages_table.c.created_at,
+                users_table.c.display_name,
+            )
+            .select_from(
+                group_messages_table.join(
+                    users_table, group_messages_table.c.sender_id == users_table.c.id
+                )
+            )
+            .where(group_messages_table.c.id == group["pinned_message_id"])
+        ).mappings().first()
+        if p is not None:
+            pinned = {
+                "id": p["id"],
+                "body": p["body"],
+                "sender": p["display_name"],
+                "time": format_time(p["created_at"]),
+            }
+
     is_admin = membership["role"] == "admin"
     is_muted = bool(membership["muted"])
     draft = session.get(draft_key, "")
@@ -1442,6 +1510,7 @@ def group_chat(group_id):
         candidates=candidates,
         draft=draft,
         emoji=EMOJI,
+        pinned=pinned,
         is_admin=is_admin,
         is_muted=is_muted,
         is_creator=(group["created_by"] == me["id"]),
@@ -1581,6 +1650,9 @@ def group_settings(group_id):
         values["add_mode"] = add_mode
     if info_mode in ("all", "admins"):
         values["info_mode"] = info_mode
+    slow_mode = request.form.get("slow_mode")
+    if slow_mode is not None and slow_mode.isdigit():
+        values["slow_mode"] = int(slow_mode)
     if values:
         conn.execute(
             update(groups_table).where(groups_table.c.id == group_id).values(**values)
@@ -1691,6 +1763,60 @@ def group_mute(group_id, user_id):
     )
     conn.commit()
     flash("Участник заглушён." if new_val else "Участник снова может писать.")
+    return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/groups/<int:group_id>/pin/<int:message_id>", methods=["POST"])
+def group_pin(group_id, message_id):
+    """Закрепить сообщение в группе (только админ)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    if membership is None or membership["role"] != "admin":
+        flash("Закреплять может только админ группы.")
+        return redirect(url_for("group_chat", group_id=group_id))
+    msg = conn.execute(
+        select(group_messages_table.c.id).where(
+            and_(
+                group_messages_table.c.id == message_id,
+                group_messages_table.c.group_id == group_id,
+            )
+        )
+    ).first()
+    if msg is None:
+        flash("Сообщение не найдено.")
+        return redirect(url_for("group_chat", group_id=group_id))
+    conn.execute(
+        update(groups_table)
+        .where(groups_table.c.id == group_id)
+        .values(pinned_message_id=message_id)
+    )
+    conn.commit()
+    flash("Сообщение закреплено. 📌")
+    return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/groups/<int:group_id>/unpin", methods=["POST"])
+def group_unpin(group_id):
+    """Открепить сообщение."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    if membership is None or membership["role"] != "admin":
+        return redirect(url_for("group_chat", group_id=group_id))
+    conn.execute(
+        update(groups_table)
+        .where(groups_table.c.id == group_id)
+        .values(pinned_message_id=None)
+    )
+    conn.commit()
+    flash("Сообщение откреплено.")
     return redirect(url_for("group_chat", group_id=group_id))
 
 
@@ -1870,7 +1996,26 @@ def api_group_chat(group_id):
     ).scalar() or 0
     mark_read(conn, me["id"], "group", group_id, max_id)
 
-    return jsonify({"messages": group_conversation(conn, group_id, me["id"])})
+    group = conn.execute(
+        select(groups_table).where(groups_table.c.id == group_id)
+    ).mappings().first()
+    pinned = None
+    if group and group["pinned_message_id"]:
+        p = conn.execute(
+            select(group_messages_table.c.body, users_table.c.display_name)
+            .select_from(
+                group_messages_table.join(
+                    users_table, group_messages_table.c.sender_id == users_table.c.id
+                )
+            )
+            .where(group_messages_table.c.id == group["pinned_message_id"])
+        ).mappings().first()
+        if p is not None:
+            pinned = {"body": p["body"], "sender": p["display_name"]}
+
+    return jsonify(
+        {"messages": group_conversation(conn, group_id, me["id"]), "pinned": pinned}
+    )
 
 
 @app.route("/api/unread")
