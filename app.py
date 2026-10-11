@@ -133,6 +133,11 @@ messages_table = Table(
 
 def init_db():
     """Создаём таблицы, если их ещё нет. Можно вызывать сколько угодно раз."""
+    # Пишем в лог, куда сохраняется база — чтобы это было видно в Dokploy → Logs.
+    if DATABASE_URL.startswith("sqlite"):
+        print("Хранилище данных (файл): {}".format(DB_PATH), flush=True)
+    else:
+        print("Хранилище данных: PostgreSQL (внешняя база)", flush=True)
     metadata.create_all(engine)
 
 
