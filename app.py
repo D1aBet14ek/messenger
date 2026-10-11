@@ -1087,6 +1087,7 @@ def load_contacts(conn, me_id):
         select(
             groups_table.c.id,
             groups_table.c.name,
+            groups_table.c.created_by,
             groups_table.c.photo.is_not(None).label("has_photo"),
         )
         .select_from(
@@ -1863,6 +1864,22 @@ def group_remove_member(group_id, user_id):
     conn.commit()
     flash("Человек убран из группы.")
     return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/friends/remove/<int:user_id>", methods=["POST"])
+def friends_remove(user_id):
+    """Удалить человека из контактов (правой кнопкой → Удалить)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    f = friendship_between(conn, me["id"], user_id)
+    if f is not None:
+        conn.execute(delete(friendships_table).where(friendships_table.c.id == f["id"]))
+        conn.commit()
+        flash("Удалено из контактов.")
+    return redirect(url_for("users"))
 
 
 @app.route("/groups/<int:group_id>/settings", methods=["POST"])

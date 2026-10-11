@@ -72,7 +72,7 @@
     {% if friends %}
       <ul class="people">
         {% for u in friends %}
-          <li>
+          <li data-type="user" data-id="{{ u['id'] }}">
             <a class="person" href="{{ url_for('chat', other_id=u['id']) }}" target="_top">
               <span class="avatar-wrap">
                 {% if u['has_avatar'] %}
@@ -119,7 +119,7 @@
     {% if groups %}
       <ul class="people">
         {% for g in groups %}
-          <li>
+          <li data-type="group" data-id="{{ g['id'] }}"{% if g['created_by'] == me['id'] %} data-owner="1"{% endif %}>
             <a class="person" href="{{ url_for('group_chat', group_id=g['id']) }}" target="_top">
               {% if g['has_photo'] %}
                 <img class="avatar img" src="{{ url_for('group_photo', group_id=g['id']) }}" alt="">
@@ -192,6 +192,64 @@
       }
       box.addEventListener("input", apply);
       apply();
+    })();
+
+    // Правая кнопка мыши по другу или группе — меню «Удалить» (с подтверждением)
+    (function () {
+      var menu = document.createElement("div");
+      menu.className = "ctx-menu";
+      menu.hidden = true;
+      document.body.appendChild(menu);
+
+      function hide() { menu.hidden = true; }
+      function act(url) {
+        fetch(url, { method: "POST" })
+          .then(function () { window.location.reload(); })
+          .catch(function () { window.location.reload(); });
+      }
+      function addItem(label, fn) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "ctx-item";
+        b.textContent = label;
+        b.addEventListener("click", function () { hide(); fn(); });
+        menu.appendChild(b);
+      }
+
+      document.addEventListener("click", hide);
+
+      document.addEventListener("contextmenu", function (e) {
+        var el = e.target;
+        while (el && el !== document.body && !el.getAttribute("data-type")) {
+          el = el.parentElement;
+        }
+        if (!el || !el.getAttribute("data-type")) { return; }
+
+        var type = el.getAttribute("data-type");
+        var id = el.getAttribute("data-id");
+        menu.innerHTML = "";
+
+        if (type === "user") {
+          addItem("Удалить из контактов", function () {
+            if (window.confirm("Удалить из контактов?")) { act("/friends/remove/" + id); }
+          });
+        } else if (type === "group") {
+          if (el.getAttribute("data-owner")) {
+            addItem("Удалить группу", function () {
+              if (window.confirm("Удалить группу целиком?")) { act("/groups/" + id + "/delete"); }
+            });
+          } else {
+            addItem("Выйти из группы", function () {
+              if (window.confirm("Выйти из группы?")) { act("/groups/" + id + "/leave"); }
+            });
+          }
+        }
+
+        menu.style.left = e.clientX + "px";
+        menu.style.top = e.clientY + "px";
+        menu.hidden = false;
+        e.preventDefault();
+      });
     })();
   </script>
 </body>
