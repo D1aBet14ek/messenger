@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Данные и память — Поговорим{% endblock %}
+
+{% block content %}
+<h1>💾 Данные и память</h1>
+<p class="muted"><a href="{{ url_for('settings') }}">← Настройки</a></p>
+
+<div class="card">
+  <p class="muted">Твой аккаунт: <b>{{ user['display_name'] }}</b>
+    (@{{ user['username'] }})</p>
+  <p class="muted">Все сообщения, друзья и группы хранятся на твоём сервере.</p>
+</div>
+
+<form method="post" action="{{ url_for('settings_data') }}" class="card danger-zone">
+  <h2 class="panel-title">Удаление аккаунта</h2>
+  <p class="muted">Это <b>навсегда</b> удалит твой аккаунт, все твои сообщения,
+    друзей и созданные тобой группы. Отменить нельзя.</p>
+  <label>Впиши слово <b>УДАЛИТЬ</b>, чтобы подтвердить
+    <input name="confirm" placeholder="УДАЛИТЬ" autocomplete="off">
+  </label>
+  <button class="btn danger" type="submit">Удалить аккаунт</button>
+</form>
+
+<script>
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { window.location.href = "{{ url_for('settings') }}"; }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Язык — Поговорим{% endblock %}
+
+{% block content %}
+<h1>🌐 Язык</h1>
+<p class="muted"><a href="{{ url_for('settings') }}">← Настройки</a></p>
+
+<form method="post" action="{{ url_for('settings_language') }}" class="card">
+  <label>Язык интерфейса
+    <select name="lang">
+      <option value="ru" selected>Русский</option>
+    </select>
+  </label>
+  <button class="btn" type="submit">Сохранить</button>
+  <p class="muted">Пока доступен только русский. Другие языки добавим позже.</p>
+</form>
+
+<script>
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { window.location.href = "{{ url_for('settings') }}"; }
+  });
+</script>
+{% endblock %}

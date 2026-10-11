@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Уведомления — Поговорим{% endblock %}
+
+{% block content %}
+<h1>🔔 Уведомления</h1>
+<p class="muted"><a href="{{ url_for('settings') }}">← Настройки</a></p>
+
+<form method="post" action="{{ url_for('settings_notifications') }}" class="card">
+  <label class="checkline">
+    <input type="checkbox" name="show_counts" value="1"
+           {% if user['show_counts'] is none or user['show_counts'] %}checked{% endif %}>
+    <span>Показывать счётчики непрочитанных</span>
+  </label>
+  <p class="muted">Красные кружочки с числом новых сообщений в списке чатов.</p>
+  <button class="btn" type="submit">Сохранить</button>
+</form>
+
+<script>
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { window.location.href = "{{ url_for('settings') }}"; }
+  });
+</script>
+{% endblock %}

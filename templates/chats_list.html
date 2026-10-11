@@ -150,6 +150,7 @@
 
   <script>
     // Обновляем только кружочки с числами — без перезагрузки списка и без мерцания.
+    var SHOW_COUNTS = {{ 'false' if current_user['show_counts'] == 0 else 'true' }};
     function updateCounts() {
       fetch("/api/unread").then(function (r) {
         if (!r.ok) return null;
@@ -159,6 +160,7 @@
         var spans = document.querySelectorAll(".count");
         for (var i = 0; i < spans.length; i++) {
           var el = spans[i];
+          if (!SHOW_COUNTS) { el.hidden = true; continue; }
           var kind = el.getAttribute("data-kind");
           var id = el.getAttribute("data-id");
           var n = (data[kind] && data[kind][id]) || 0;

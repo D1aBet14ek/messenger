@@ -60,6 +60,36 @@
       <span class="parrow">→</span>
     </a>
   </li>
+  <li>
+    <a class="settings-row" href="{{ url_for('settings_notifications') }}">
+      <span class="sicon">🔔</span>
+      <span class="ptext">
+        <span class="pname">Уведомления</span>
+        <span class="plogin">Счётчики непрочитанных</span>
+      </span>
+      <span class="parrow">→</span>
+    </a>
+  </li>
+  <li>
+    <a class="settings-row" href="{{ url_for('settings_language') }}">
+      <span class="sicon">🌐</span>
+      <span class="ptext">
+        <span class="pname">Язык</span>
+        <span class="plogin">Язык интерфейса</span>
+      </span>
+      <span class="parrow">→</span>
+    </a>
+  </li>
+  <li>
+    <a class="settings-row" href="{{ url_for('settings_data') }}">
+      <span class="sicon">💾</span>
+      <span class="ptext">
+        <span class="pname">Данные и память</span>
+        <span class="plogin">Удаление аккаунта</span>
+      </span>
+      <span class="parrow">→</span>
+    </a>
+  </li>
 </ul>
 
 <p class="muted"><a href="{{ url_for('users') }}">← Назад к чатам</a></p>

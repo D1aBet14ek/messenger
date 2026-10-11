@@ -148,6 +148,7 @@ users_table = Table(
     Column("last_seen", String(30)),                               # когда последний раз был в сети
     Column("hide_online", Integer),                               # 1 — скрывать, что я в сети
     Column("auto_refresh", Integer),                              # 1 — автообновление включено
+    Column("show_counts", Integer),                               # 1 — показывать счётчики непрочитанных
     Column("avatar", LargeBinary),                                 # картинка-аватар
     Column("avatar_mime", String(50)),                             # вид картинки (png/jpeg)
 )
@@ -240,6 +241,7 @@ def ensure_columns():
             "last_seen": "VARCHAR(30)",
             "hide_online": "INTEGER",
             "auto_refresh": "INTEGER",
+            "show_counts": "INTEGER",
             "avatar": blob_type,
             "avatar_mime": "VARCHAR(50)",
         },
@@ -490,6 +492,7 @@ def user_cols():
         users_table.c.last_seen,
         users_table.c.hide_online,
         users_table.c.auto_refresh,
+        users_table.c.show_counts,
         users_table.c.avatar.is_not(None).label("has_avatar"),
     ]
 
@@ -955,6 +958,104 @@ def settings_power():
         return redirect(url_for("settings_power"))
 
     return render_template("settings_power.html", user=user)
+
+
+@app.route("/settings/notifications", methods=["GET", "POST"])
+def settings_notifications():
+    """Экран «Уведомления»: счётчики непрочитанных."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+
+    if request.method == "POST":
+        conn.execute(
+            update(users_table)
+            .where(users_table.c.id == me["id"])
+            .values(show_counts=1 if request.form.get("show_counts") else 0)
+        )
+        conn.commit()
+        flash("Настройка сохранена. 🔔")
+        return redirect(url_for("settings_notifications"))
+
+    return render_template("settings_notifications.html", user=user)
+
+
+@app.route("/settings/language", methods=["GET", "POST"])
+def settings_language():
+    """Экран «Язык» (пока доступен только русский)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+    if request.method == "POST":
+        flash("Язык сохранён. Пока доступен только русский.")
+        return redirect(url_for("settings_language"))
+    return render_template("settings_language.html", user=user)
+
+
+@app.route("/settings/data", methods=["GET", "POST"])
+def settings_data():
+    """Экран «Данные и память»: удаление аккаунта."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+
+    if request.method == "POST":
+        if request.form.get("confirm", "").strip() != "УДАЛИТЬ":
+            flash("Чтобы удалить аккаунт, впиши слово УДАЛИТЬ.")
+            return redirect(url_for("settings_data"))
+
+        uid = me["id"]
+        conn.execute(
+            delete(messages_table).where(
+                or_(messages_table.c.sender_id == uid, messages_table.c.recipient_id == uid)
+            )
+        )
+        conn.execute(delete(group_messages_table).where(group_messages_table.c.sender_id == uid))
+        conn.execute(delete(group_members_table).where(group_members_table.c.user_id == uid))
+        conn.execute(
+            delete(friendships_table).where(
+                or_(friendships_table.c.requester_id == uid,
+                    friendships_table.c.addressee_id == uid)
+            )
+        )
+        conn.execute(delete(reads_table).where(reads_table.c.user_id == uid))
+        owned = [
+            row["id"]
+            for row in conn.execute(
+                select(groups_table.c.id).where(groups_table.c.created_by == uid)
+            ).mappings().all()
+        ]
+        for gid in owned:
+            conn.execute(delete(group_messages_table).where(group_messages_table.c.group_id == gid))
+            conn.execute(delete(group_members_table).where(group_members_table.c.group_id == gid))
+            conn.execute(
+                delete(reads_table).where(
+                    and_(reads_table.c.kind == "group", reads_table.c.peer_id == gid)
+                )
+            )
+            conn.execute(delete(groups_table).where(groups_table.c.id == gid))
+        conn.execute(delete(users_table).where(users_table.c.id == uid))
+        conn.commit()
+        session.clear()
+        flash("Аккаунт удалён. Все твои данные стёрты.")
+        return redirect(url_for("login"))
+
+    return render_template("settings_data.html", user=user)
 
 
 @app.route("/avatar/<int:user_id>")
