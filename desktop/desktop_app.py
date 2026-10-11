@@ -21,7 +21,7 @@ from tkinter import messagebox, simpledialog
 import webview
 
 # === Версия программы (меняй вместе с desktop/version.txt на сервере) ===
-VERSION = "1.2"
+VERSION = "1.3"
 
 # === Адрес твоего мессенджера ===
 # Если здесь пусто — программа спросит адрес один раз и запомнит.
@@ -195,12 +195,18 @@ def check_and_offer_update(base_url):
 # Запуск
 # ---------------------------------------------------------------------------
 class Api:
-    """«Мостик» со страницы в программу: позволяет выйти из полноэкранного режима."""
+    """«Мостик» со страницы в программу: полный экран и выход из программы."""
 
     def toggle_fullscreen(self):
         win = webview.active_window()
         if win:
             win.toggle_fullscreen()
+
+    def close_app(self):
+        """Закрыть программу (кнопка «Закрыть программу»)."""
+        win = webview.active_window()
+        if win:
+            win.destroy()
 
 
 def main():

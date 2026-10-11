@@ -27,6 +27,8 @@
         <a class="btn small" href="{{ url_for('users') }}">Список людей</a>
         <a class="btn small ghost" href="{{ url_for('profile') }}">Настройки</a>
         <a class="btn small ghost" href="{{ url_for('logout') }}">Выйти</a>
+        {# Эта кнопка появляется только внутри программы для ПК (закрывает её) #}
+        <button class="btn small ghost danger" type="button" id="exitApp" hidden>✕ Закрыть программу</button>
       </nav>
     {% endif %}
   </header>
@@ -59,6 +61,19 @@
         }
       }
     });
+
+    // Кнопка «Закрыть программу» — показываем только внутри программы для ПК
+    var exitBtn = document.getElementById("exitApp");
+    function showExit() { if (exitBtn) exitBtn.hidden = false; }
+    if (window.pywebview && window.pywebview.api) { showExit(); }
+    window.addEventListener("pywebviewready", showExit);
+    if (exitBtn) {
+      exitBtn.addEventListener("click", function () {
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.close_app) {
+          window.pywebview.api.close_app();
+        }
+      });
+    }
   </script>
 </body>
 </html>
