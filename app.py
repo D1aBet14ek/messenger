@@ -157,6 +157,17 @@ friendships_table = Table(
     Column("created_at", String(30), nullable=False),
 )
 
+# Таблица «Прочитано» — id последнего прочитанного сообщения.
+# kind = "user" (личный чат) или "group" (группа).
+reads_table = Table(
+    "reads",
+    metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("kind", String(10), primary_key=True),
+    Column("peer_id", Integer, primary_key=True),
+    Column("last_seen_id", Integer, nullable=False),
+)
+
 # Таблица «Сообщения»
 messages_table = Table(
     "messages",
@@ -353,6 +364,34 @@ def friend_ids(conn, me_id):
     for r in rows:
         ids.add(r["addressee_id"] if r["requester_id"] == me_id else r["requester_id"])
     return ids
+
+
+def get_reads(conn, user_id):
+    """Что прочитано: {(kind, peer_id): id последнего прочитанного сообщения}."""
+    rows = conn.execute(
+        select(reads_table).where(reads_table.c.user_id == user_id)
+    ).mappings().all()
+    return {(r["kind"], r["peer_id"]): r["last_seen_id"] for r in rows}
+
+
+def mark_read(conn, user_id, kind, peer_id, last_seen_id):
+    """Отмечаем, что человек прочитал переписку вплоть до сообщения last_seen_id."""
+    where = and_(
+        reads_table.c.user_id == user_id,
+        reads_table.c.kind == kind,
+        reads_table.c.peer_id == peer_id,
+    )
+    row = conn.execute(select(reads_table.c.last_seen_id).where(where)).first()
+    if row is None:
+        conn.execute(
+            insert(reads_table).values(
+                user_id=user_id, kind=kind, peer_id=peer_id, last_seen_id=last_seen_id
+            )
+        )
+        conn.commit()
+    elif row["last_seen_id"] < last_seen_id:
+        conn.execute(update(reads_table).where(where).values(last_seen_id=last_seen_id))
+        conn.commit()
 
 
 def user_cols():
@@ -652,8 +691,10 @@ def avatar_too_large(error):
 
 def load_contacts(conn, me_id):
     """Данные страницы контактов: друзья, группы, входящие и исходящие заявки."""
-    # Мои группы
-    my_groups = conn.execute(
+    reads = get_reads(conn, me_id)
+
+    # Мои группы (с числом непрочитанных)
+    group_rows = conn.execute(
         select(groups_table.c.id, groups_table.c.name)
         .select_from(
             groups_table.join(
@@ -663,16 +704,47 @@ def load_contacts(conn, me_id):
         .where(group_members_table.c.user_id == me_id)
         .order_by(func.lower(groups_table.c.name))
     ).mappings().all()
+    my_groups = []
+    for g in group_rows:
+        d = dict(g)
+        last = reads.get(("group", d["id"]), 0)
+        d["unread"] = conn.execute(
+            select(func.count())
+            .select_from(group_messages_table)
+            .where(
+                and_(
+                    group_messages_table.c.group_id == d["id"],
+                    group_messages_table.c.sender_id != me_id,
+                    group_messages_table.c.id > last,
+                )
+            )
+        ).scalar() or 0
+        my_groups.append(d)
 
-    # Мои друзья (только подтверждённые!)
-    ids = friend_ids(conn, me_id)
+    # Мои друзья (только подтверждённые!, с числом непрочитанных)
+    fids = friend_ids(conn, me_id)
     friends = []
-    if ids:
-        friends = conn.execute(
+    if fids:
+        rows = conn.execute(
             select(*user_cols())
-            .where(users_table.c.id.in_(ids))
+            .where(users_table.c.id.in_(fids))
             .order_by(func.lower(users_table.c.display_name))
         ).mappings().all()
+        for u in rows:
+            d = dict(u)
+            last = reads.get(("user", d["id"]), 0)
+            d["unread"] = conn.execute(
+                select(func.count())
+                .select_from(messages_table)
+                .where(
+                    and_(
+                        messages_table.c.sender_id == d["id"],
+                        messages_table.c.recipient_id == me_id,
+                        messages_table.c.id > last,
+                    )
+                )
+            ).scalar() or 0
+            friends.append(d)
 
     # Входящие заявки в друзья (мне)
     incoming = conn.execute(
@@ -972,6 +1044,19 @@ def messages(other_id):
     if not are_friends(conn, me["id"], other["id"]):
         return redirect(url_for("users"))
 
+    # Пока чат открыт — отмечаем сообщения прочитанными
+    max_id = conn.execute(
+        select(func.max(messages_table.c.id)).where(
+            or_(
+                and_(messages_table.c.sender_id == me["id"],
+                     messages_table.c.recipient_id == other["id"]),
+                and_(messages_table.c.sender_id == other["id"],
+                     messages_table.c.recipient_id == me["id"]),
+            )
+        )
+    ).scalar() or 0
+    mark_read(conn, me["id"], "user", other["id"], max_id)
+
     return render_template(
         "chat_messages.html",
         other=other,
@@ -1197,6 +1282,14 @@ def group_messages(group_id):
     conn = get_conn()
     if group_membership(conn, group_id, me["id"]) is None:
         return redirect(url_for("users"))
+
+    # Пока группа открыта — отмечаем сообщения прочитанными
+    max_id = conn.execute(
+        select(func.max(group_messages_table.c.id)).where(
+            group_messages_table.c.group_id == group_id
+        )
+    ).scalar() or 0
+    mark_read(conn, me["id"], "group", group_id, max_id)
 
     return render_template(
         "chat_messages.html",

@@ -146,7 +146,30 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .ptext { display: flex; flex-direction: column; }
 .pname { font-weight: 600; }
 .plogin { color: var(--muted); font-size: 13px; }
-.parrow { margin-left: auto; color: var(--muted); font-size: 20px; }
+.parrow {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Кружочек с числом непрочитанных сообщений */
+.count {
+  background: #ff4d4f;
+  color: #fff;
+  border-radius: 999px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
 
 /* Чат */
 .chat-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }

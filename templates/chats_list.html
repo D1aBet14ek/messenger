@@ -59,7 +59,9 @@
                 <span class="pname">{{ u['display_name'] }}</span>
                 <span class="plogin">@{{ u['username'] }}{% if u['bio'] %} · {{ u['bio'] }}{% endif %}</span>
               </span>
-              <span class="parrow">→</span>
+              <span class="parrow">
+                {% if u['unread'] %}<span class="count">{{ u['unread'] }}</span>{% endif %} →
+              </span>
             </a>
           </li>
         {% endfor %}
@@ -97,7 +99,9 @@
                 <span class="pname">{{ g['name'] }}</span>
                 <span class="plogin">группа</span>
               </span>
-              <span class="parrow">→</span>
+              <span class="parrow">
+                {% if g['unread'] %}<span class="count">{{ g['unread'] }}</span>{% endif %} →
+              </span>
             </a>
           </li>
         {% endfor %}
