@@ -229,6 +229,35 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 }
 .emoji-btn:hover { background: #f4f7ff; border-color: var(--brand); }
 
+/* Выбор фона чата */
+.bg-bar { order: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.bg-label { color: var(--muted); font-size: 13px; margin-right: 2px; }
+.bg-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.bg-swatch:hover { border-color: var(--brand); }
+
+/* Варианты фона чата (классы bg-<имя>). Все светлые — чтобы текст читался. */
+.bg-default { background: #ffffff; }
+.bg-gray { background: #eef1f6; }
+.bg-blue { background: #e7efff; }
+.bg-green { background: #e6f7ec; }
+.bg-pink { background: #fdeaf2; }
+.bg-yellow { background: #fff7dd; }
+.bg-sky { background: linear-gradient(180deg, #e8f4ff, #d4ecff); }
+.bg-sunset { background: linear-gradient(180deg, #ffe9d6, #ffd9e8); }
+.bg-mint { background: linear-gradient(180deg, #e3fff3, #d6f5ff); }
+.bg-dots {
+  background-color: #f3f6ff;
+  background-image: radial-gradient(#c9d6f5 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+}
+
 /* Имя автора в групповом сообщении */
 .sender { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
 

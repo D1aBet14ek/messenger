@@ -32,6 +32,15 @@
     <button class="btn" type="submit" name="send" value="1">Отправить</button>
   </div>
 
+  {# Выбор фона: нажал квадратик — фон чата сменился #}
+  <div class="bg-bar">
+    <span class="bg-label">Фон:</span>
+    {% for b in backgrounds %}
+      <button class="bg-swatch bg-{{ b }}" type="submit" name="set_bg" value="{{ b }}"
+              title="Сменить фон чата"></button>
+    {% endfor %}
+  </div>
+
   <div class="emoji-bar">
     {% for e in emoji %}
       <button class="emoji-btn" type="submit" name="add_emoji" value="{{ e }}"

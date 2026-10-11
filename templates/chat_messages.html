@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="frame-body">
-  <div class="messages">
+  <div class="messages bg-{{ background }}">
     {% if messages %}
       {% for m in messages|reverse %}
         <div class="msg {{ 'mine' if m.mine else 'theirs' }}">

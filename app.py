@@ -137,6 +137,7 @@ users_table = Table(
     Column("password_hash", Text, nullable=False),                 # отпечаток пароля
     Column("created_at", String(30), nullable=False),
     Column("bio", Text),                                           # описание (о себе)
+    Column("background", String(20)),                              # выбранный фон чата
     Column("avatar", LargeBinary),                                 # картинка-аватар
     Column("avatar_mime", String(50)),                             # вид картинки (png/jpeg)
 )
@@ -210,6 +211,7 @@ def ensure_columns():
     needed = {
         "phone": "VARCHAR(20)",
         "bio": "TEXT",
+        "background": "VARCHAR(20)",
         "avatar": blob_type,
         "avatar_mime": "VARCHAR(50)",
     }
@@ -285,6 +287,12 @@ EMOJI = [
     "😡", "😴", "👍", "👎", "❤️", "🔥", "🎉", "🙏", "🥳", "💩",
 ]
 
+# Варианты фона для чата. Сами цвета заданы в style.css (классы bg-<имя>).
+BACKGROUNDS = [
+    "default", "gray", "blue", "green", "pink",
+    "yellow", "sky", "sunset", "mint", "dots",
+]
+
 
 def valid_username(name):
     return bool(USERNAME_RE.match(name))
@@ -352,6 +360,7 @@ def user_cols():
         users_table.c.phone,
         users_table.c.display_name,
         users_table.c.bio,
+        users_table.c.background,
         users_table.c.avatar.is_not(None).label("has_avatar"),
     ]
 
@@ -823,6 +832,17 @@ def chat(other_id):
     draft_key = "draft_{}".format(other["id"])
 
     if request.method == "POST":
+        # Смена фона чата (нажали цветной квадратик)
+        set_bg = request.form.get("set_bg")
+        if set_bg in BACKGROUNDS:
+            conn.execute(
+                update(users_table)
+                .where(users_table.c.id == me["id"])
+                .values(background=set_bg)
+            )
+            conn.commit()
+            return redirect(url_for("chat", other_id=other["id"]))
+
         raw = request.form.get("body", "")
         body = raw.strip()
 
@@ -855,7 +875,14 @@ def chat(other_id):
         return redirect(url_for("chat", other_id=other["id"]))
 
     draft = session.get(draft_key, "")
-    return render_template("chat.html", other=other, draft=draft, emoji=EMOJI)
+    return render_template(
+        "chat.html",
+        other=other,
+        draft=draft,
+        emoji=EMOJI,
+        backgrounds=BACKGROUNDS,
+        background=me["background"] or "default",
+    )
 
 
 def conversation(conn, me_id, other_id):
@@ -915,6 +942,7 @@ def messages(other_id):
         "chat_messages.html",
         other=other,
         messages=conversation(conn, me["id"], other["id"]),
+        background=me["background"] or "default",
     )
 
 
@@ -1044,6 +1072,17 @@ def group_chat(group_id):
     draft_key = "gdraft_{}".format(group_id)
 
     if request.method == "POST":
+        # Смена фона чата
+        set_bg = request.form.get("set_bg")
+        if set_bg in BACKGROUNDS:
+            conn.execute(
+                update(users_table)
+                .where(users_table.c.id == me["id"])
+                .values(background=set_bg)
+            )
+            conn.commit()
+            return redirect(url_for("group_chat", group_id=group_id))
+
         raw = request.form.get("body", "")
         body = raw.strip()
         emoji = request.form.get("add_emoji")
@@ -1108,6 +1147,8 @@ def group_chat(group_id):
         draft=draft,
         emoji=EMOJI,
         is_admin=(membership["role"] == "admin"),
+        backgrounds=BACKGROUNDS,
+        background=me["background"] or "default",
     )
 
 
@@ -1126,6 +1167,7 @@ def group_messages(group_id):
     return render_template(
         "chat_messages.html",
         messages=group_conversation(conn, group_id, me["id"]),
+        background=me["background"] or "default",
     )
 
 
