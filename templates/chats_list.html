@@ -15,6 +15,20 @@
 <body class="frame-body list-body theme-{{ theme }}{% if app_bg %} bg-{{ app_bg }}{% endif %}">
   <div class="list-wrap">
 
+    {# Мини-профиль вверху слева: аватарка и имя #}
+    <a class="me-card" href="{{ url_for('profile') }}" target="_top">
+      {% if me['has_avatar'] %}
+        <img class="avatar img" src="{{ url_for('avatar', user_id=me['id']) }}" alt="">
+      {% else %}
+        <span class="avatar">{{ me['display_name'][0]|upper }}</span>
+      {% endif %}
+      <span class="ptext">
+        <span class="pname">{{ me['display_name'] }}</span>
+        <span class="plogin">@{{ me['username'] }} · профиль</span>
+      </span>
+      <span class="parrow">⚙️</span>
+    </a>
+
     {# Добавить друга по @логину #}
     <form method="post" action="{{ url_for('friends_add') }}" class="add-friend" autocomplete="off">
       <input name="who" required maxlength="20" placeholder="Добавить друга: @логин">

@@ -227,6 +227,21 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .add-friend { display: flex; gap: 8px; margin-bottom: 12px; }
 .add-friend input { flex: 1; }
 
+/* Мини-профиль вверху списка */
+.me-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.me-card:hover { text-decoration: none; border-color: var(--brand); }
+
 /* Пустая область справа, когда чат ещё не выбран */
 .empty-state {
   flex: 1 1 auto;

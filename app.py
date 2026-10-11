@@ -1005,6 +1005,7 @@ def chats_frame():
     friends, my_groups, incoming, outgoing = load_contacts(get_conn(), me["id"])
     return render_template(
         "chats_list.html",
+        me=me,
         friends=friends,
         groups=my_groups,
         incoming=incoming,
