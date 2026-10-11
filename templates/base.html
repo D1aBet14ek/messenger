@@ -49,6 +49,16 @@
         navigator.serviceWorker.register('/sw.js');
       });
     }
+  <script>
+    // F11 — включить/выключить полноэкранный режим (работает внутри программы для ПК)
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "F11") {
+        e.preventDefault();
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.toggle_fullscreen) {
+          window.pywebview.api.toggle_fullscreen();
+        }
+      }
+    });
   </script>
 </body>
 </html>

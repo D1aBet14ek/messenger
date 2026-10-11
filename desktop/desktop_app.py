@@ -21,7 +21,7 @@ from tkinter import messagebox, simpledialog
 import webview
 
 # === Версия программы (меняй вместе с desktop/version.txt на сервере) ===
-VERSION = "1.1"
+VERSION = "1.2"
 
 # === Адрес твоего мессенджера ===
 # Если здесь пусто — программа спросит адрес один раз и запомнит.
@@ -194,6 +194,15 @@ def check_and_offer_update(base_url):
 # ---------------------------------------------------------------------------
 # Запуск
 # ---------------------------------------------------------------------------
+class Api:
+    """«Мостик» со страницы в программу: позволяет выйти из полноэкранного режима."""
+
+    def toggle_fullscreen(self):
+        win = webview.active_window()
+        if win:
+            win.toggle_fullscreen()
+
+
 def main():
     hide_console()
     create_desktop_shortcut()
@@ -206,7 +215,13 @@ def main():
         os._exit(0)
 
     webview.create_window(
-        "Поговорим", url, width=1200, height=800, min_size=(420, 560), maximized=True
+        "Поговорим",
+        url,
+        width=1200,
+        height=800,
+        min_size=(420, 560),
+        fullscreen=True,
+        js_api=Api(),
     )
     # private_mode=False + storage_path — чтобы вход сохранялся между запусками.
     # Папку берём в системных данных пользователя, а не рядом с программой.
