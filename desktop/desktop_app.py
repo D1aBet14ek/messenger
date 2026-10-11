@@ -21,7 +21,7 @@ from tkinter import messagebox, simpledialog
 import webview
 
 # === Версия программы (меняй вместе с desktop/version.txt на сервере) ===
-VERSION = "1.4"
+VERSION = "1.5"
 
 # === Адрес твоего мессенджера ===
 # Если здесь пусто — программа спросит адрес один раз и запомнит.
@@ -203,14 +203,14 @@ class Api:
             win.toggle_fullscreen()
 
     def close_app(self):
-        """Закрыть программу (несколькими способами — чтобы сработало точно)."""
+        """Закрыть программу. Сначала аккуратно закрываем окно, затем гарантированно
+        завершаем процесс (чтобы кнопка срабатывала в любом случае)."""
         try:
             win = webview.active_window()
             if win is None and webview.windows:
                 win = webview.windows[0]
             if win is not None:
                 win.destroy()
-                return "closed"
         except Exception:
             pass
         os._exit(0)

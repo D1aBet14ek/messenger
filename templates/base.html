@@ -80,7 +80,9 @@
       exitBtn.addEventListener("click", function () {
         if (hasPcApi()) {
           window.pywebview.api.close_app();
+          return;
         }
+        try { window.close(); } catch (e) {}
       });
     }
   </script>
