@@ -191,8 +191,12 @@ groups_table = Table(
     Column("name", String(60), nullable=False),                              # название группы
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),   # кто создал
     Column("created_at", String(30), nullable=False),
+    Column("description", Text),        # описание группы (о группе)
     Column("write_mode", String(10)),   # "all" — пишут все, "admins" — только админы
     Column("add_mode", String(10)),     # "all" — добавлять могут все, "admins" — только админы
+    Column("info_mode", String(10)),    # кто может менять информацию группы
+    Column("photo", LargeBinary),       # картинка группы
+    Column("photo_mime", String(50)),
 )
 
 # Таблица «Участники групп» — кто в какой группе и кем является
@@ -203,6 +207,7 @@ group_members_table = Table(
     Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
     Column("role", String(10), nullable=False),   # "admin" — админ, "member" — участник
     Column("joined_at", String(30), nullable=False),
+    Column("muted", Integer),                     # 1 — заглушён (не может писать)
 )
 
 # Таблица «Сообщения групп»
@@ -235,6 +240,13 @@ def ensure_columns():
         "groups": {
             "write_mode": "VARCHAR(10)",
             "add_mode": "VARCHAR(10)",
+            "info_mode": "VARCHAR(10)",
+            "description": "TEXT",
+            "photo": blob_type,
+            "photo_mime": "VARCHAR(50)",
+        },
+        "group_members": {
+            "muted": "INTEGER",
         },
     }
     for table, needed in plan.items():
@@ -812,7 +824,11 @@ def load_contacts(conn, me_id):
 
     # Мои группы (с числом непрочитанных)
     group_rows = conn.execute(
-        select(groups_table.c.id, groups_table.c.name)
+        select(
+            groups_table.c.id,
+            groups_table.c.name,
+            groups_table.c.photo.is_not(None).label("has_photo"),
+        )
         .select_from(
             groups_table.join(
                 group_members_table, groups_table.c.id == group_members_table.c.group_id
@@ -1224,7 +1240,7 @@ def messages(other_id):
 def group_membership(conn, group_id, user_id):
     """Участие человека в группе: возвращает роль («admin»/«member») или None."""
     return conn.execute(
-        select(group_members_table.c.role).where(
+        select(group_members_table.c.role, group_members_table.c.muted).where(
             and_(
                 group_members_table.c.group_id == group_id,
                 group_members_table.c.user_id == user_id,
@@ -1362,6 +1378,9 @@ def group_chat(group_id):
         if not body:
             flash("Пустое сообщение отправлять не нужно. 🙂")
             session[draft_key] = ""
+        elif membership["muted"]:
+            flash("Админ заглушил тебя в этой группе — писать нельзя.")
+            session[draft_key] = raw[:2000]
         elif (group["write_mode"] or "all") == "admins" and membership["role"] != "admin":
             flash("В этой группе писать могут только админы.")
             session[draft_key] = raw[:2000]
@@ -1386,6 +1405,7 @@ def group_chat(group_id):
         select(
             group_members_table.c.user_id,
             group_members_table.c.role,
+            group_members_table.c.muted,
             users_table.c.display_name,
             users_table.c.username,
             users_table.c.bio,
@@ -1413,6 +1433,7 @@ def group_chat(group_id):
         ).mappings().all()
 
     is_admin = membership["role"] == "admin"
+    is_muted = bool(membership["muted"])
     draft = session.get(draft_key, "")
     return render_template(
         "group_chat.html",
@@ -1422,9 +1443,11 @@ def group_chat(group_id):
         draft=draft,
         emoji=EMOJI,
         is_admin=is_admin,
+        is_muted=is_muted,
         is_creator=(group["created_by"] == me["id"]),
-        can_write=is_admin or (group["write_mode"] or "all") != "admins",
+        can_write=(not is_muted) and (is_admin or (group["write_mode"] or "all") != "admins"),
         can_add=is_admin or (group["add_mode"] or "all") == "all",
+        can_edit_info=is_admin or (group["info_mode"] or "admins") == "all",
         online_count=sum(1 for m in members if is_online(m["last_seen"])),
         backgrounds=BACKGROUNDS,
         background=me["background"] or "default",
@@ -1551,16 +1574,123 @@ def group_settings(group_id):
     values = {}
     write_mode = request.form.get("write_mode")
     add_mode = request.form.get("add_mode")
+    info_mode = request.form.get("info_mode")
     if write_mode in ("all", "admins"):
         values["write_mode"] = write_mode
     if add_mode in ("all", "admins"):
         values["add_mode"] = add_mode
+    if info_mode in ("all", "admins"):
+        values["info_mode"] = info_mode
     if values:
         conn.execute(
             update(groups_table).where(groups_table.c.id == group_id).values(**values)
         )
         conn.commit()
         flash("Настройки группы сохранены.")
+    return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/groups/<int:group_id>/edit", methods=["POST"])
+def group_edit(group_id):
+    """Изменить название, описание и фото группы."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    group = conn.execute(
+        select(groups_table).where(groups_table.c.id == group_id)
+    ).mappings().first()
+    if membership is None or group is None:
+        return redirect(url_for("users"))
+    if not (membership["role"] == "admin" or (group["info_mode"] or "admins") == "all"):
+        flash("Менять информацию группы может только админ.")
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    name = request.form.get("name", "").strip()
+    description = request.form.get("description", "").strip()
+    photo_file = request.files.get("photo")
+    remove_photo = request.form.get("remove_photo")
+
+    values = {}
+    if 1 <= len(name) <= 60:
+        values["name"] = name
+    if len(description) <= 300:
+        values["description"] = description
+
+    if photo_file and photo_file.filename:
+        mime = photo_file.mimetype or ""
+        data = photo_file.read()
+        if not mime.startswith("image/"):
+            flash("Фото группы должно быть картинкой.")
+            return redirect(url_for("group_chat", group_id=group_id))
+        if len(data) > 2 * 1024 * 1024:
+            flash("Картинка слишком большая (максимум 2 МБ).")
+            return redirect(url_for("group_chat", group_id=group_id))
+        values["photo"] = data
+        values["photo_mime"] = mime
+    elif remove_photo:
+        values["photo"] = None
+        values["photo_mime"] = None
+
+    if values:
+        conn.execute(
+            update(groups_table).where(groups_table.c.id == group_id).values(**values)
+        )
+        conn.commit()
+        flash("Группа обновлена.")
+    return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/group-photo/<int:group_id>")
+def group_photo(group_id):
+    """Отдаёт фото группы (или пустой ответ, если его нет)."""
+    conn = get_conn()
+    row = conn.execute(
+        select(groups_table.c.photo, groups_table.c.photo_mime)
+        .where(groups_table.c.id == group_id)
+    ).mappings().first()
+    if row is None or row["photo"] is None:
+        return ("", 404)
+    return Response(bytes(row["photo"]), mimetype=row["photo_mime"] or "image/png")
+
+
+@app.route("/groups/<int:group_id>/mute/<int:user_id>", methods=["POST"])
+def group_mute(group_id, user_id):
+    """Заглушить/разглушить участника (только админ)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    if membership is None or membership["role"] != "admin":
+        flash("Заглушать может только админ группы.")
+        return redirect(url_for("group_chat", group_id=group_id))
+    target = group_membership(conn, group_id, user_id)
+    if target is None:
+        flash("Такого участника нет.")
+        return redirect(url_for("group_chat", group_id=group_id))
+    if user_id == me["id"]:
+        flash("Себя заглушить нельзя.")
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    new_val = 0 if target["muted"] else 1
+    conn.execute(
+        update(group_members_table)
+        .where(
+            and_(
+                group_members_table.c.group_id == group_id,
+                group_members_table.c.user_id == user_id,
+            )
+        )
+        .values(muted=new_val)
+    )
+    conn.commit()
+    flash("Участник заглушён." if new_val else "Участник снова может писать.")
     return redirect(url_for("group_chat", group_id=group_id))
 
 

@@ -487,6 +487,7 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
   font-weight: 600;
   vertical-align: middle;
 }
+.badge.muted { background: #fff3d6; border-color: #f3d99a; color: #8a6d1a; }
 
 /* Аватары: для групп и уменьшенные */
 .avatar.group { background: var(--muted); font-size: 18px; }
@@ -587,6 +588,7 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
 .theme-dark .btn.ghost:hover { background: #1e2a42; }
 .theme-dark .flash { background: #1b2a4a; border-color: #2f4470; color: #cddcff; }
 .theme-dark .badge { background: #22304f; border-color: #2f4470; color: #cddcff; }
+.theme-dark .badge.muted { background: #3a2f14; border-color: #5c4a1f; color: #f3d99a; }
 .theme-dark .tg-grip:hover,
 .theme-dark .tg-grip.active { background: #24304c; }
 .theme-dark .bg-default { background: linear-gradient(180deg, #141d30, #0f1728); }

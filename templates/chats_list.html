@@ -96,7 +96,11 @@
         {% for g in groups %}
           <li>
             <a class="person" href="{{ url_for('group_chat', group_id=g['id']) }}" target="_top">
-              <span class="avatar group">👥</span>
+              {% if g['has_photo'] %}
+                <img class="avatar img" src="{{ url_for('group_photo', group_id=g['id']) }}" alt="">
+              {% else %}
+                <span class="avatar group">👥</span>
+              {% endif %}
               <span class="ptext">
                 <span class="pname">{{ g['name'] }}</span>
                 <span class="plogin">группа{% if g['online'] %} · {{ g['online'] }} в сети{% endif %}</span>

@@ -15,6 +15,9 @@
   <div class="tg-main">
     <div class="chat-head">
       <a class="btn small ghost" href="{{ url_for('users') }}">← Все чаты</a>
+      {% if group['photo'] %}
+        <img class="avatar img" src="{{ url_for('group_photo', group_id=group['id']) }}" alt="">
+      {% endif %}
       <h1>👥 {{ group['name'] }}</h1>
       {% if is_admin %}<span class="badge">ты админ</span>{% endif %}
       <span class="plogin">{% if online_count %}{{ online_count }} в сети{% else %}никого в сети{% endif %}</span>
@@ -36,7 +39,9 @@
         </div>
       </form>
     {% else %}
-      <p class="muted center small-hint">Писать в этой группе могут только админы.</p>
+      <p class="muted center small-hint">
+        {% if is_muted %}Админ заглушил тебя — писать нельзя.{% else %}Писать в этой группе могут только админы.{% endif %}
+      </p>
     {% endif %}
 
     <div class="group-panel">
@@ -54,7 +59,8 @@
             </span>
             <span class="ptext">
               <span class="pname">{{ m['display_name'] }}
-                {% if m['role'] == 'admin' %}<span class="badge">админ</span>{% endif %}</span>
+                {% if m['role'] == 'admin' %}<span class="badge">админ</span>{% endif %}
+                {% if m['muted'] %}<span class="badge muted">заглушён</span>{% endif %}</span>
               <span class="plogin">@{{ m['username'] }}</span>
             </span>
             {% if is_admin and m['user_id'] != group['created_by'] %}
@@ -68,6 +74,9 @@
                     <button class="btn small" type="submit">Сделать админом</button>
                   </form>
                 {% endif %}
+                <form method="post" action="{{ url_for('group_mute', group_id=group['id'], user_id=m['user_id']) }}">
+                  <button class="btn small ghost" type="submit">{% if m['muted'] %}Разглушить{% else %}Заглушить{% endif %}</button>
+                </form>
                 {% if m['role'] != 'admin' %}
                   <form method="post" action="{{ url_for('group_remove_member', group_id=group['id'], user_id=m['user_id']) }}">
                     <button class="btn small ghost danger" type="submit">Убрать</button>
@@ -94,7 +103,37 @@
               <option value="admins" {% if group['add_mode'] == 'admins' %}selected{% endif %}>Только админы</option>
             </select>
           </label>
+          <label>Кто может менять информацию группы
+            <select name="info_mode">
+              <option value="all" {% if (group['info_mode'] or 'admins') == 'all' %}selected{% endif %}>Все участники</option>
+              <option value="admins" {% if (group['info_mode'] or 'admins') == 'admins' %}selected{% endif %}>Только админы</option>
+            </select>
+          </label>
           <button class="btn" type="submit">Сохранить настройки</button>
+        </form>
+      {% endif %}
+
+      {% if can_edit_info %}
+        <h2 class="panel-title">Информация о группе</h2>
+        <form method="post" action="{{ url_for('group_edit', group_id=group['id']) }}"
+              enctype="multipart/form-data" class="card">
+          <label>Название
+            <input name="name" maxlength="60" value="{{ group['name'] }}">
+          </label>
+          <label>Описание
+            <textarea name="description" maxlength="300" rows="3"
+                      placeholder="О чём группа">{{ group['description'] or '' }}</textarea>
+          </label>
+          <label>Фото группы (картинка, до 2 МБ)
+            <input type="file" name="photo" accept="image/*">
+          </label>
+          {% if group['photo'] %}
+            <label class="checkline">
+              <input type="checkbox" name="remove_photo" value="1">
+              <span>Убрать текущее фото</span>
+            </label>
+          {% endif %}
+          <button class="btn" type="submit">Сохранить информацию</button>
         </form>
       {% endif %}
 
