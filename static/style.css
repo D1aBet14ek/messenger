@@ -216,7 +216,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   border: 0;
   background: #eef1f6;
 }
-.list-body { background: var(--bg); }
+.list-body { background: var(--bg); min-height: 100vh; }
 .list-wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
 
 /* Поиск в списке чатов */
