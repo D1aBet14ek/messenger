@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Вход — Поговорим{% endblock %}
+
+{% block content %}
+<h1>С возвращением 👋</h1>
+<p class="muted">Введи логин и пароль, чтобы войти.</p>
+
+<form method="post" class="card">
+  <label>Логин
+    <input name="username" required maxlength="20" placeholder="anna_2026" autocomplete="username">
+  </label>
+
+  <label>Пароль
+    <input name="password" type="password" required autocomplete="current-password">
+  </label>
+
+  <button class="btn" type="submit">Войти</button>
+  <p class="muted">Ещё нет аккаунта? <a href="{{ url_for('register') }}">Зарегистрироваться</a></p>
+</form>
+{% endblock %}

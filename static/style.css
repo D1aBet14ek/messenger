@@ -1,0 +1,191 @@
+/* ----- Оформление мессенджера «Поговорим» ----- */
+
+:root {
+  --bg: #eef1f6;
+  --card: #ffffff;
+  --ink: #1c2430;
+  --muted: #6b7686;
+  --brand: #4f7cff;
+  --brand-dark: #3a63d8;
+  --mine: #4f7cff;
+  --theirs: #ffffff;
+  --line: #e2e6ee;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+a { color: var(--brand-dark); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Верхняя полоска */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.brand { font-weight: 700; font-size: 20px; color: var(--ink); }
+.brand:hover { text-decoration: none; }
+.nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.who { color: var(--muted); font-size: 14px; }
+
+/* Основная область */
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+h1 { font-size: 24px; margin: 4px 0 12px; }
+.muted { color: var(--muted); }
+.center { text-align: center; }
+.small-hint { font-size: 13px; margin-top: 12px; }
+
+/* Кнопки */
+.btn {
+  display: inline-block;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn:hover { background: var(--brand-dark); }
+.btn.small { padding: 7px 12px; font-size: 14px; }
+.btn.ghost {
+  background: transparent;
+  color: var(--brand-dark);
+  border: 1px solid var(--line);
+}
+.btn.ghost:hover { background: #f4f7ff; }
+
+/* Карточки и формы */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+}
+form.card { display: flex; flex-direction: column; gap: 16px; }
+
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+input {
+  font-family: inherit;
+  font-size: 16px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcfe;
+  font-weight: 400;
+}
+input:focus { outline: 2px solid var(--brand); border-color: transparent; }
+.hint { font-weight: 400; color: var(--muted); font-size: 13px; }
+
+/* Сообщение о результате (флеш) */
+.flash {
+  background: #eaf1ff;
+  border: 1px solid #c9dbff;
+  color: #1f3a76;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+/* Список людей */
+.people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.person {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 16px;
+  color: var(--ink);
+}
+.person:hover { text-decoration: none; border-color: var(--brand); background: #f7f9ff; }
+.avatar {
+  width: 42px; height: 42px;
+  flex: 0 0 42px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 18px;
+}
+.ptext { display: flex; flex-direction: column; }
+.pname { font-weight: 600; }
+.plogin { color: var(--muted); font-size: 13px; }
+.parrow { margin-left: auto; color: var(--muted); font-size: 20px; }
+
+/* Чат */
+.chat-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.chat-head h1 { margin: 0; font-size: 20px; }
+
+/* Рамка (iframe), внутри которой показываются сообщения.
+   Именно её браузер перезагружает сам — без JavaScript. */
+.messages-frame {
+  display: block;
+  width: 100%;
+  height: 60vh;
+  min-height: 300px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+/* Внутренняя страничка с сообщениями (живёт внутри рамки) */
+.frame-body { margin: 0; background: var(--card); }
+.messages {
+  min-height: 100vh;             /* занять всю высоту рамки */
+  padding: 16px;
+  display: flex;
+  flex-direction: column-reverse; /* новые сообщения всегда внизу */
+  gap: 10px;
+}
+.messages .empty {
+  margin: auto;
+  align-self: center;
+  color: var(--muted);
+  text-align: center;
+}
+.msg { display: flex; flex-direction: column; max-width: 78%; }
+.msg.mine { align-self: flex-end; align-items: flex-end; }
+.msg.theirs { align-self: flex-start; align-items: flex-start; }
+
+.bubble {
+  padding: 10px 14px;
+  border-radius: 14px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.msg.mine .bubble { background: var(--mine); color: #fff; border-bottom-right-radius: 4px; }
+.msg.theirs .bubble {
+  background: var(--theirs);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+}
+.time { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+.composer { display: flex; gap: 10px; margin-top: 14px; }
+.composer input { flex: 1; }
+
+@media (max-width: 520px) {
+  .msg { max-width: 90%; }
+  .who { display: none; }
+}

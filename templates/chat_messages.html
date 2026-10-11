@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  {#
+    ВОТ ОНО — самообновление без JavaScript.
+    Эта строчка просит браузер перезагрузить эту маленькую страничку
+    каждые 3 секунды. Так как она лежит внутри рамки (iframe) на странице чата,
+    перезагружается только она, а не весь чат. Твой набранный текст не пропадает.
+  #}
+  <meta http-equiv="refresh" content="3">
+
+  <title>Сообщения</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="frame-body">
+  {# Сообщения идут «снизу вверх»: новые всегда внизу, и видно самые свежие #}
+  <div class="messages">
+    {% if messages %}
+      {% for m in messages|reverse %}
+        <div class="msg {{ 'mine' if m.mine else 'theirs' }}">
+          <div class="bubble">{{ m.body }}</div>
+          <div class="time">{{ m.time }}</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">Пока сообщений нет. Напиши первым! 👋</p>
+    {% endif %}
+  </div>
+</body>
+</html>

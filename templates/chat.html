@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Чат с {{ other['display_name'] }} — Поговорим{% endblock %}
+
+{% block content %}
+<div class="chat-head">
+  <a class="btn small ghost" href="{{ url_for('users') }}">← Все люди</a>
+  <h1>Чат с {{ other['display_name'] }}</h1>
+  <span class="plogin">@{{ other['username'] }}</span>
+  {# Запасная кнопка на случай, если рамки (iframe) отключены #}
+  <a class="btn small" href="{{ url_for('chat', other_id=other['id']) }}">🔄 Обновить</a>
+</div>
+
+{#
+  Это и есть «самообновление без JavaScript».
+  Рамка (iframe) показывает отдельную страничку /messages/... , а внутри неё
+  стоит <meta refresh> — браузер сам перезагружает ТОЛЬКО эту рамку каждые
+  3 секунды. Сама страница чата и поле ввода не перезагружаются, поэтому
+  набранный текст не пропадает.
+#}
+<iframe class="messages-frame"
+        src="{{ url_for('messages', other_id=other['id']) }}"
+        title="Сообщения"></iframe>
+
+{# Обычная форма: нажал «Отправить» — браузер отправил текст на сервер #}
+<form method="post" class="composer" autocomplete="off">
+  <input name="body" id="body" placeholder="Напиши сообщение..." required maxlength="2000" autofocus>
+  <button class="btn" type="submit">Отправить</button>
+</form>
+
+<p class="muted center small-hint">
+  Новые сообщения появляются сами — примерно каждые 3 секунды. Можно ничего не нажимать. 🙂
+</p>
+{% endblock %}

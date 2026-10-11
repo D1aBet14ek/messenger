@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Регистрация — Поговорим{% endblock %}
+
+{% block content %}
+<h1>Представься 👋</h1>
+<p class="muted">Придумай логин, имя для показа и пароль — и ты в мессенджере.</p>
+
+<form method="post" class="card">
+  <label>Логин (латинскими буквами)
+    <input name="username" required maxlength="20" placeholder="anna_2026" autocomplete="username">
+    <span class="hint">Это как адрес: буквы, цифры и «_», от 3 до 20 символов.</span>
+  </label>
+
+  <label>Имя для показа
+    <input name="display_name" required maxlength="40" placeholder="Аня">
+    <span class="hint">Так тебя будут видеть другие люди.</span>
+  </label>
+
+  <label>Пароль (минимум 6 символов)
+    <input name="password" type="password" required minlength="6" autocomplete="new-password">
+  </label>
+
+  <label>Повтори пароль
+    <input name="password2" type="password" required minlength="6" autocomplete="new-password">
+  </label>
+
+  <button class="btn" type="submit">Создать аккаунт</button>
+  <p class="muted">Уже есть аккаунт? <a href="{{ url_for('login') }}">Войти</a></p>
+</form>
+{% endblock %}

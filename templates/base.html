@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Поговорим{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">💬 Поговорим</a>
+    {% if current_user %}
+      <nav class="nav">
+        <span class="who">Ты вошёл как <b>{{ current_user['display_name'] }}</b></span>
+        <a class="btn small" href="{{ url_for('users') }}">Список людей</a>
+        <a class="btn small ghost" href="{{ url_for('logout') }}">Выйти</a>
+      </nav>
+    {% endif %}
+  </header>
+
+  <main class="wrap">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

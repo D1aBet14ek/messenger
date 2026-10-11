@@ -1,0 +1,22 @@
+# Этот файл — «чертёж» для хостинга Render.
+# Если выбрать на Render создание по чертежу (Blueprint), он сам всё настроит:
+# как устанавливать библиотеки, как запускать сайт и какие настройки нужны.
+
+services:
+  - type: web
+    name: messenger
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: DEBUG
+        value: "0"
+      # Ключ входа: Render придумает случайный сам.
+      - key: SECRET_KEY
+        generateValue: true
+      # Адрес базы данных из Neon — впишешь его на Render вручную.
+      - key: DATABASE_URL
+        sync: false
