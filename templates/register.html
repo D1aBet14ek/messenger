@@ -3,12 +3,13 @@
 
 {% block content %}
 <h1>Представься 👋</h1>
-<p class="muted">Зарегистрируйся по номеру телефона — он будет твоим входом.</p>
+<p class="muted">Придумай логин — по нему ты будешь входить и тебя найдут друзья.</p>
 
 <form method="post" class="card">
-  <label>Номер телефона
-    <input name="phone" required maxlength="20" placeholder="+7 900 123-45-67" autocomplete="tel">
-    <span class="hint">По нему ты будешь входить, и по нему тебя смогут добавить в друзья.</span>
+  <label>Логин
+    <input name="username" required maxlength="20" placeholder="anna_2026" autocomplete="username">
+    <span class="hint">Как в Telegram: латиница, цифры и «_», от 3 до 20 символов.
+      Другие увидят тебя как @anna_2026</span>
   </label>
 
   <label>Имя для показа

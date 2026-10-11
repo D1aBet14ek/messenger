@@ -28,7 +28,7 @@
             {% endif %}
             <span class="ptext">
               <span class="pname">{{ r['display_name'] }}</span>
-              <span class="plogin">{{ r['phone'] or r['username'] }}</span>
+              <span class="plogin">@{{ r['username'] }}</span>
             </span>
             {# target="_top" — чтобы кнопка действовала на всю страницу, а не внутри рамки #}
             <form method="post" target="_top" class="inline-form"
@@ -57,7 +57,7 @@
               {% endif %}
               <span class="ptext">
                 <span class="pname">{{ u['display_name'] }}</span>
-                <span class="plogin">{{ u['phone'] or u['username'] }}{% if u['bio'] %} · {{ u['bio'] }}{% endif %}</span>
+                <span class="plogin">@{{ u['username'] }}{% if u['bio'] %} · {{ u['bio'] }}{% endif %}</span>
               </span>
               <span class="parrow">→</span>
             </a>
@@ -66,7 +66,7 @@
       </ul>
     {% else %}
       <div class="card">
-        <p class="muted">Друзей пока нет. Добавь кого-нибудь по телефону или имени — сверху.</p>
+        <p class="muted">Друзей пока нет. Добавь кого-нибудь по @логину — сверху.</p>
       </div>
     {% endif %}
 

@@ -5,8 +5,8 @@
 <h1>Добавить в друзья</h1>
 
 <form method="post" action="{{ url_for('friends_add') }}" class="card" autocomplete="off">
-  <label>Телефон или имя
-    <input name="who" required maxlength="60" placeholder="+7 900 123-45-67 или Аня" autofocus>
+  <label>Логин человека (@имя)
+    <input name="who" required maxlength="20" placeholder="@anna_2026" autofocus>
     <span class="hint">Человек получит заявку и подтвердит её — тогда вы появитесь
       друг у друга в контактах и сможете общаться.</span>
   </label>

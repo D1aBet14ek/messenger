@@ -405,20 +405,20 @@ def health():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """Страница регистрации: тут человек «представляется» по номеру телефона."""
+    """Страница регистрации: человек придумывает логин (@имя), как в Telegram."""
     if "user_id" in session:
         return redirect(url_for("users"))
 
     if request.method == "POST":
-        phone = normalize_phone(request.form.get("phone", ""))
+        username = request.form.get("username", "").strip().lstrip("@").lower()
         display_name = request.form.get("display_name", "").strip()
         password = request.form.get("password", "")
         password2 = request.form.get("password2", "")
 
         # Проверяем всё по очереди и запоминаем одну понятную ошибку.
         error = None
-        if not (10 <= len(phone) <= 15):
-            error = "Телефон: введи номер (10–15 цифр). Например: +7 900 123-45-67"
+        if not valid_username(username):
+            error = "Логин: латинские буквы, цифры и «_», от 3 до 20 символов. Например: anna_2026"
         elif not (1 <= len(display_name) <= 40):
             error = "Имя для показа: от 1 до 40 символов."
         elif len(password) < 6:
@@ -429,22 +429,23 @@ def register():
         if error is None:
             conn = get_conn()
             taken = conn.execute(
-                select(users_table.c.id).where(users_table.c.phone == phone)
+                select(users_table.c.id).where(
+                    func.lower(users_table.c.username) == username
+                )
             ).first()
             if taken:
-                error = "Этот номер уже зарегистрирован — войди или возьми другой."
+                error = "Такой логин уже занят — выбери другой."
             else:
                 conn.execute(
                     insert(users_table).values(
-                        username=phone,       # внутренний логин = цифры номера
-                        phone=phone,
+                        username=username,
                         display_name=display_name,
                         password_hash=generate_password_hash(password),
                         created_at=datetime.now().isoformat(timespec="seconds"),
                     )
                 )
                 conn.commit()
-                flash("Аккаунт создан! Теперь войди по номеру телефона. 🎉")
+                flash("Аккаунт создан! Теперь войди под своим логином. 🎉")
                 return redirect(url_for("login"))
 
         flash(error)  # покажем сообщение об ошибке на странице
@@ -454,27 +455,25 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    """Страница входа: по номеру телефона."""
+    """Страница входа: по логину."""
     if "user_id" in session:
         return redirect(url_for("users"))
 
     if request.method == "POST":
-        ident = request.form.get("phone", "").strip()
+        username = request.form.get("username", "").strip().lstrip("@").lower()
         password = request.form.get("password", "")
-        digits = normalize_phone(ident)
 
         conn = get_conn()
         user = conn.execute(
             select(users_table).where(
-                or_(users_table.c.phone == digits,
-                    users_table.c.username == ident)
+                func.lower(users_table.c.username) == username
             )
         ).mappings().first()
 
-        # Проверяем и телефон, и пароль. Сообщение об ошибке одинаковое —
+        # Проверяем и логин, и пароль. Сообщение об ошибке одинаковое —
         # так чужие люди не узнают, кто вообще зарегистрирован.
         if user is None or not check_password_hash(user["password_hash"], password):
-            flash("Неверный телефон или пароль.")
+            flash("Неверный логин или пароль.")
         else:
             session.clear()
             session["user_id"] = user["id"]
@@ -689,23 +688,19 @@ def friends_add():
 
     me = current_user()
     conn = get_conn()
-    who = request.form.get("who", "").strip()
-    digits = normalize_phone(who)
+    who = request.form.get("who", "").strip().lstrip("@").lower()
 
-    # Ищем человека: сначала по телефону, потом по имени (без учёта регистра) или логину.
-    # Сравниваем в Python — так одинаково надёжно и с русскими буквами, и с латиницей.
+    # Ищем человека по логину (@имя).
     target = None
-    who_lower = who.lower()
-    for u in conn.execute(select(*user_cols())).mappings().all():
-        if digits and u["phone"] == digits:
-            target = u
-            break
-        if u["username"] == who or (u["display_name"] or "").lower() == who_lower:
-            target = u
-            break
+    if who:
+        target = conn.execute(
+            select(*user_cols()).where(
+                func.lower(users_table.c.username) == who
+            )
+        ).mappings().first()
 
-    if target is None or not who:
-        flash("Не нашли такого человека. Проверь телефон или имя.")
+    if target is None:
+        flash("Не нашли такой логин. Проверь @имя.")
     elif target["id"] == me["id"]:
         flash("Это ты сам 🙂")
     elif friendship_between(conn, me["id"], target["id"]) is not None:
