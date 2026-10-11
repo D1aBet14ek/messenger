@@ -381,7 +381,9 @@ def mark_read(conn, user_id, kind, peer_id, last_seen_id):
         reads_table.c.kind == kind,
         reads_table.c.peer_id == peer_id,
     )
-    row = conn.execute(select(reads_table.c.last_seen_id).where(where)).first()
+    row = conn.execute(
+        select(reads_table.c.last_seen_id).where(where)
+    ).mappings().first()
     if row is None:
         conn.execute(
             insert(reads_table).values(
