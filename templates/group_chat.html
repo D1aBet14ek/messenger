@@ -17,6 +17,7 @@
       <a class="btn small ghost" href="{{ url_for('users') }}">← Все чаты</a>
       <h1>👥 {{ group['name'] }}</h1>
       {% if is_admin %}<span class="badge">ты админ</span>{% endif %}
+      <span class="plogin">{% if online_count %}{{ online_count }} в сети{% else %}никого в сети{% endif %}</span>
     </div>
 
     <div id="messages" class="messages bg-{{ background }}"></div>
@@ -43,11 +44,14 @@
       <ul class="member-list">
         {% for m in members %}
           <li>
-            {% if m['has_avatar'] %}
-              <img class="avatar img small" src="{{ url_for('avatar', user_id=m['user_id']) }}" alt="">
-            {% else %}
-              <span class="avatar small">{{ m['display_name'][0]|upper }}</span>
-            {% endif %}
+            <span class="avatar-wrap">
+              {% if m['has_avatar'] %}
+                <img class="avatar img small" src="{{ url_for('avatar', user_id=m['user_id']) }}" alt="">
+              {% else %}
+                <span class="avatar small">{{ m['display_name'][0]|upper }}</span>
+              {% endif %}
+              {% if is_online(m['last_seen']) %}<span class="dot-online" title="в сети"></span>{% endif %}
+            </span>
             <span class="ptext">
               <span class="pname">{{ m['display_name'] }}
                 {% if m['role'] == 'admin' %}<span class="badge">админ</span>{% endif %}</span>

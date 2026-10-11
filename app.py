@@ -17,6 +17,7 @@
 
 import os
 import re
+import time
 from datetime import datetime, timedelta
 
 from flask import (
@@ -144,6 +145,7 @@ users_table = Table(
     Column("background", String(20)),                              # выбранный фон чата
     Column("theme", String(10)),                                   # "light" или "dark"
     Column("app_bg", String(20)),                                  # фон приложения (окошкеек/меню)
+    Column("last_seen", String(30)),                               # когда последний раз был в сети
     Column("avatar", LargeBinary),                                 # картинка-аватар
     Column("avatar_mime", String(50)),                             # вид картинки (png/jpeg)
 )
@@ -226,6 +228,7 @@ def ensure_columns():
             "background": "VARCHAR(20)",
             "theme": "VARCHAR(10)",
             "app_bg": "VARCHAR(20)",
+            "last_seen": "VARCHAR(30)",
             "avatar": blob_type,
             "avatar_mime": "VARCHAR(50)",
         },
@@ -332,6 +335,23 @@ def format_time(iso_string):
         return ""
 
 
+ONLINE_SECONDS = 120  # если был в сети меньше 2 минут назад — считаем «в сети»
+
+
+def is_online(last_seen):
+    """True, если человек был в сети недавно."""
+    if not last_seen:
+        return False
+    try:
+        dt = datetime.fromisoformat(last_seen)
+    except (ValueError, TypeError):
+        return False
+    return (datetime.now() - dt).total_seconds() < ONLINE_SECONDS
+
+
+app.jinja_env.globals["is_online"] = is_online
+
+
 def normalize_phone(raw):
     """Оставляем только цифры — так номера сравниваются надёжно."""
     return "".join(ch for ch in (raw or "") if ch.isdigit())
@@ -419,6 +439,7 @@ def user_cols():
         users_table.c.background,
         users_table.c.theme,
         users_table.c.app_bg,
+        users_table.c.last_seen,
         users_table.c.avatar.is_not(None).label("has_avatar"),
     ]
 
@@ -438,6 +459,29 @@ def current_user():
 def inject_user():
     """Делает current_user доступным во всех шаблонах (в base.html)."""
     return {"current_user": current_user()}
+
+
+@app.before_request
+def touch_last_seen():
+    """Отмечаем, что человек сейчас в сети (не чаще раза в 20 секунд)."""
+    if "user_id" not in session:
+        return
+    if request.endpoint in (None, "static"):
+        return
+    now = time.time()
+    if now - session.get("_seen", 0) < 20:
+        return
+    session["_seen"] = now
+    try:
+        conn = get_conn()
+        conn.execute(
+            update(users_table)
+            .where(users_table.c.id == session["user_id"])
+            .values(last_seen=datetime.now().isoformat(timespec="seconds"))
+        )
+        conn.commit()
+    except Exception:
+        pass
 
 
 def not_logged_in_redirect():
@@ -793,6 +837,17 @@ def load_contacts(conn, me_id):
                 )
             )
         ).scalar() or 0
+        # Сколько участников группы сейчас в сети
+        online_rows = conn.execute(
+            select(users_table.c.last_seen)
+            .select_from(
+                group_members_table.join(
+                    users_table, group_members_table.c.user_id == users_table.c.id
+                )
+            )
+            .where(group_members_table.c.group_id == d["id"])
+        ).mappings().all()
+        d["online"] = sum(1 for x in online_rows if is_online(x["last_seen"]))
         my_groups.append(d)
 
     # Мои друзья (только подтверждённые!, с числом непрочитанных)
@@ -1072,8 +1127,21 @@ def chat(other_id):
 
 def conversation(conn, me_id, other_id):
     """Возвращает переписку двух людей по порядку: старые сверху, новые снизу."""
+    # До какого сообщения собеседник прочитал переписку со мной? (для галочек)
+    other_read = conn.execute(
+        select(reads_table.c.last_seen_id).where(
+            and_(
+                reads_table.c.user_id == other_id,
+                reads_table.c.kind == "user",
+                reads_table.c.peer_id == me_id,
+            )
+        )
+    ).mappings().first()
+    other_read_id = other_read["last_seen_id"] if other_read else 0
+
     rows = conn.execute(
         select(
+            messages_table.c.id,
             messages_table.c.sender_id,
             messages_table.c.body,
             messages_table.c.created_at,
@@ -1088,15 +1156,20 @@ def conversation(conn, me_id, other_id):
         )
         .order_by(messages_table.c.id)
     ).mappings().all()
-    return [
-        {
-            "mine": row["sender_id"] == me_id,
-            "body": row["body"],
-            "time": format_time(row["created_at"]),
-            "sender": None,  # в личном чате имя показывать не нужно
-        }
-        for row in rows
-    ]
+
+    result = []
+    for row in rows:
+        mine = row["sender_id"] == me_id
+        result.append(
+            {
+                "mine": mine,
+                "body": row["body"],
+                "time": format_time(row["created_at"]),
+                "sender": None,  # в личном чате имя показывать не нужно
+                "read": bool(mine and other_read_id >= row["id"]),
+            }
+        )
+    return result
 
 
 @app.route("/messages/<int:other_id>")
@@ -1317,6 +1390,7 @@ def group_chat(group_id):
             users_table.c.display_name,
             users_table.c.username,
             users_table.c.bio,
+            users_table.c.last_seen,
             users_table.c.avatar.is_not(None).label("has_avatar"),
         )
         .select_from(
@@ -1352,6 +1426,7 @@ def group_chat(group_id):
         is_creator=(group["created_by"] == me["id"]),
         can_write=is_admin or (group["write_mode"] or "all") != "admins",
         can_add=is_admin or (group["add_mode"] or "all") == "all",
+        online_count=sum(1 for m in members if is_online(m["last_seen"])),
         backgrounds=BACKGROUNDS,
         background=me["background"] or "default",
     )

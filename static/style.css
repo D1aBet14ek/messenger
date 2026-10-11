@@ -430,6 +430,33 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
 .avatar.big { width: 72px; height: 72px; flex: 0 0 72px; font-size: 30px; }
 .profile-head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
 
+/* «В сети» — зелёный кружок на аватаре */
+.avatar-wrap { position: relative; display: inline-flex; flex: 0 0 auto; }
+.dot-online {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--card);
+  box-sizing: border-box;
+}
+.dot-online.inline {
+  position: static;
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 0;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+/* Галочки прочтения: ✓ — не прочитано, ✓✓ — прочитано */
+.checks { font-size: 12px; letter-spacing: -2px; color: var(--muted); }
+.checks.read { color: #38bdf8; }
+
 /* Список галочек (выбор людей) */
 .checklist { list-style: none; margin: 8px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .checkline { flex-direction: row; align-items: center; gap: 10px; font-weight: 400; cursor: pointer; }

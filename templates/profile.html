@@ -82,4 +82,13 @@
     {% endfor %}
   </div>
 </form>
+
+<script>
+  // Esc в настройках — вернуться к чатам
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      window.location.href = "{{ url_for('users') }}";
+    }
+  });
+</script>
 {% endblock %}

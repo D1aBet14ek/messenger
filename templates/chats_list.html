@@ -49,11 +49,14 @@
         {% for u in friends %}
           <li>
             <a class="person" href="{{ url_for('chat', other_id=u['id']) }}" target="_top">
-              {% if u['has_avatar'] %}
-                <img class="avatar img" src="{{ url_for('avatar', user_id=u['id']) }}" alt="">
-              {% else %}
-                <span class="avatar">{{ u['display_name'][0]|upper }}</span>
-              {% endif %}
+              <span class="avatar-wrap">
+                {% if u['has_avatar'] %}
+                  <img class="avatar img" src="{{ url_for('avatar', user_id=u['id']) }}" alt="">
+                {% else %}
+                  <span class="avatar">{{ u['display_name'][0]|upper }}</span>
+                {% endif %}
+                {% if is_online(u['last_seen']) %}<span class="dot-online" title="в сети"></span>{% endif %}
+              </span>
               <span class="ptext">
                 <span class="pname">{{ u['display_name'] }}</span>
                 <span class="plogin">@{{ u['username'] }}{% if u['bio'] %} · {{ u['bio'] }}{% endif %}</span>
@@ -96,7 +99,7 @@
               <span class="avatar group">👥</span>
               <span class="ptext">
                 <span class="pname">{{ g['name'] }}</span>
-                <span class="plogin">группа</span>
+                <span class="plogin">группа{% if g['online'] %} · {{ g['online'] }} в сети{% endif %}</span>
               </span>
               <span class="parrow">
                 <span class="count" data-kind="group" data-id="{{ g['id'] }}"{% if not g['unread'] %} hidden{% endif %}>{{ g['unread'] or '' }}</span> →

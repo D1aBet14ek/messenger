@@ -17,7 +17,7 @@
     <div class="chat-head">
       <a class="btn small ghost" href="{{ url_for('users') }}">← Все чаты</a>
       <h1>Чат с {{ other['display_name'] }}</h1>
-      <span class="plogin">@{{ other['username'] }}</span>
+      <span class="plogin">@{{ other['username'] }}{% if is_online(other['last_seen']) %} · <span class="dot-online inline"></span>в сети{% endif %}</span>
     </div>
 
     <div id="messages" class="messages bg-{{ background }}"></div>
@@ -57,7 +57,13 @@
       html += '<div class="msg ' + (m.mine ? "mine" : "theirs") + '">';
       if (m.sender && !m.mine) html += '<div class="sender">' + esc(m.sender) + '</div>';
       html += '<div class="bubble">' + esc(m.body) + '</div>';
-      html += '<div class="time">' + esc(m.time) + '</div></div>';
+      html += '<div class="time">' + esc(m.time);
+      if (m.mine) {
+        html += m.read
+          ? ' <span class="checks read" title="прочитано">✓✓</span>'
+          : ' <span class="checks" title="не прочитано">✓</span>';
+      }
+      html += '</div></div>';
     }
     box.innerHTML = html;
   }
