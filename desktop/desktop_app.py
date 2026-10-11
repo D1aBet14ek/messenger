@@ -196,10 +196,12 @@ def main():
     webview.create_window(
         "Поговорим", url, width=1000, height=760, min_size=(420, 560)
     )
-    webview.start(
-        private_mode=False,
-        storage_path=os.path.join(base_dir(), "appdata"),
+    # private_mode=False + storage_path — чтобы вход сохранялся между запусками.
+    # Папку берём в системных данных пользователя, а не рядом с программой.
+    storage = os.path.join(
+        os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "Pogovorim"
     )
+    webview.start(private_mode=False, storage_path=storage)
 
 
 if __name__ == "__main__":

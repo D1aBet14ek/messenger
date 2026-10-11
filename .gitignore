@@ -15,3 +15,6 @@ desktop/build/
 desktop/dist/
 desktop/*.spec
 desktop/server.txt
+
+# Данные программы для ПК (cookies и т.п.) — хранить в проекте НЕЛЬЗЯ
+desktop/appdata/
