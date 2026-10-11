@@ -273,6 +273,8 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   box-shadow: var(--shadow);
 }
 .settings-row:hover { text-decoration: none; border-color: var(--brand); }
+.settings-row.danger .pname { color: #c93b3f; }
+.settings-row.danger:hover { border-color: #e5484d; }
 .sicon { font-size: 22px; }
 
 /* Опасная зона (удаление аккаунта) */
