@@ -158,6 +158,12 @@ def close_conn(exception=None):
 # Логин: только латинские буквы, цифры и «_», длина от 3 до 20
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,20}$")
 
+# Базовые смайлики для кнопок в чате. Список можно менять как угодно.
+EMOJI = [
+    "😀", "😂", "😅", "😊", "😍", "😎", "😉", "🤔", "😢", "😭",
+    "😡", "😴", "👍", "👎", "❤️", "🔥", "🎉", "🙏", "🥳", "💩",
+]
+
 
 def valid_username(name):
     return bool(USERNAME_RE.match(name))
@@ -328,12 +334,28 @@ def chat(other_id):
         flash("Такого собеседника нет.")
         return redirect(url_for("users"))
 
+    # Черновик — то, что человек уже набрал, но ещё не отправил.
+    # Храним отдельно для каждого собеседника.
+    draft_key = "draft_{}".format(other["id"])
+
     if request.method == "POST":
-        body = request.form.get("body", "").strip()
+        raw = request.form.get("body", "")
+        body = raw.strip()
+
+        # Нажали смайлик? Тогда просто добавляем его к тексту и возвращаемся,
+        # ничего не отправляя. JavaScript для этого не нужен.
+        emoji = request.form.get("add_emoji")
+        if emoji:
+            session[draft_key] = (raw + emoji)[:2000]
+            return redirect(url_for("chat", other_id=other["id"]))
+
+        # Иначе — это отправка сообщения.
         if not body:
             flash("Пустое сообщение отправлять не нужно. 🙂")
+            session[draft_key] = ""
         elif len(body) > 2000:
             flash("Слишком длинное сообщение (максимум 2000 символов).")
+            session[draft_key] = raw[:2000]
         else:
             conn.execute(
                 insert(messages_table).values(
@@ -344,10 +366,12 @@ def chat(other_id):
                 )
             )
             conn.commit()
+            session.pop(draft_key, None)  # текст отправлен — черновик больше не нужен
         # После отправки возвращаемся на эту же страницу (защита от повторной отправки)
         return redirect(url_for("chat", other_id=other["id"]))
 
-    return render_template("chat.html", other=other)
+    draft = session.get(draft_key, "")
+    return render_template("chat.html", other=other, draft=draft, emoji=EMOJI)
 
 
 def conversation(conn, me_id, other_id):

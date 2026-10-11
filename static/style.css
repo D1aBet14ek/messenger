@@ -182,8 +182,24 @@ input:focus { outline: 2px solid var(--brand); border-color: transparent; }
 }
 .time { font-size: 11px; color: var(--muted); margin-top: 3px; }
 
-.composer { display: flex; gap: 10px; margin-top: 14px; }
+/* Поле ввода и панель смайликов.
+   Панель смайликов показывается СВЕРХУ (order:1), а строка ввода — снизу (order:2),
+   хотя в разметке порядок обратный (так Enter отправляет, а не вставляет смайлик). */
+.composer-box { display: flex; flex-direction: column; margin-top: 14px; }
+.composer { order: 2; display: flex; gap: 10px; }
 .composer input { flex: 1; }
+
+.emoji-bar { order: 1; display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.emoji-btn {
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+}
+.emoji-btn:hover { background: #f4f7ff; border-color: var(--brand); }
 
 @media (max-width: 520px) {
   .msg { max-width: 90%; }
