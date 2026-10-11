@@ -3,22 +3,27 @@
 Программа-окно для компьютера.
 Открывает мессенджер «Поговорим» в отдельном окне (как обычное приложение).
 
-Адрес сервера можно:
-  * задать ниже в DEFAULT_ADDRESS (тогда программа не спросит его);
-  * или ввести один раз — программа запомнит его в файле server.txt.
-При первом запуске программа также создаёт ярлык на рабочем столе.
+Умеет:
+  * запоминать адрес сервера (или брать его из DEFAULT_ADDRESS);
+  * создавать ярлык на рабочем столе;
+  * проверять новую версию и предлагать обновиться (самообновление).
 """
 
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import tkinter as tk
-from tkinter import simpledialog
+import urllib.request
+from tkinter import messagebox, simpledialog
 
 import webview
 
+# === Версия программы (меняй вместе с desktop/version.txt на сервере) ===
+VERSION = "1.0"
+
 # === Адрес твоего мессенджера ===
-# Впиши сюда, например: "https://мой-домен.ru" (без слэша в конце).
 # Если здесь пусто — программа спросит адрес один раз и запомнит.
 DEFAULT_ADDRESS = "https://messenger.d1abet14ek.corray.ru"
 
@@ -33,15 +38,22 @@ def base_dir():
 CONFIG = os.path.join(base_dir(), "server.txt")
 
 
-def desktop_lnk_path():
-    return os.path.join(os.path.expanduser("~"), "Desktop", "Поговорим.lnk")
+def parse_version(text):
+    """«1.2.3» -> (1, 2, 3) — чтобы сравнивать версии."""
+    parts = []
+    for chunk in str(text).split("."):
+        digits = "".join(ch for ch in chunk if ch.isdigit())
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts)
 
 
+# ---------------------------------------------------------------------------
+# Ярлык на рабочем столе
+# ---------------------------------------------------------------------------
 def create_desktop_shortcut():
-    """Создаём ярлык на рабочем столе (один раз)."""
     if not getattr(sys, "frozen", False):
-        return  # запущено как .py — ярлык не нужен
-    lnk = desktop_lnk_path()
+        return
+    lnk = os.path.join(os.path.expanduser("~"), "Desktop", "Поговорим.lnk")
     if os.path.exists(lnk):
         return
     exe = sys.executable.replace("'", "''")
@@ -58,14 +70,16 @@ def create_desktop_shortcut():
     try:
         subprocess.run(
             ["powershell", "-NoProfile", "-Command", ps],
-            creationflags=0x08000000,  # CREATE_NO_WINDOW — без мелькания окна
+            creationflags=0x08000000,
         )
     except Exception:
         pass
 
 
+# ---------------------------------------------------------------------------
+# Адрес сервера
+# ---------------------------------------------------------------------------
 def ask_address():
-    """Спрашиваем адрес мессенджера (один раз)."""
     root = tk.Tk()
     root.withdraw()
     root.attributes("-topmost", True)
@@ -79,7 +93,6 @@ def ask_address():
 
 
 def load_address():
-    """Адрес: сначала зашитый, потом сохранённый, потом спросить."""
     if DEFAULT_ADDRESS:
         return DEFAULT_ADDRESS
     if os.path.exists(CONFIG):
@@ -100,16 +113,89 @@ def load_address():
     return url
 
 
+# ---------------------------------------------------------------------------
+# Проверка и установка обновления
+# ---------------------------------------------------------------------------
+def _hide_root():
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    return root
+
+
+def check_and_offer_update(base_url):
+    """Проверяет новую версию. Если есть — спрашивает и обновляет.
+    Возвращает True, если начал обновление (тогда программе надо закрыться)."""
+    try:
+        api = base_url.rstrip("/") + "/desktop-version"
+        with urllib.request.urlopen(api, timeout=6) as resp:
+            info = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return False  # нет интернета или сервер недоступен — просто работаем
+
+    remote = info.get("version", "")
+    if parse_version(remote) <= parse_version(VERSION):
+        return False
+
+    root = _hide_root()
+    yes = messagebox.askyesno(
+        "Обновление",
+        "Доступна новая версия программы ({}).\n"
+        "Скачать и установить сейчас?\n\n"
+        "Программа скачает обновление и перезапустится.".format(remote),
+        parent=root,
+    )
+    root.destroy()
+    if not yes:
+        return False
+
+    download_url = info.get("url", "")
+    if not download_url:
+        return False
+
+    new_exe = os.path.join(tempfile.gettempdir(), "Pogovorim_new.exe")
+    try:
+        urllib.request.urlretrieve(download_url, new_exe)
+    except Exception as exc:
+        root = _hide_root()
+        messagebox.showerror("Ошибка", "Не удалось скачать обновление:\n" + str(exc), parent=root)
+        root.destroy()
+        return False
+
+    cur = sys.executable
+    bat = os.path.join(tempfile.gettempdir(), "pogovorim_update.bat")
+    with open(bat, "w", encoding="utf-8") as f:
+        f.write("@echo off\r\n")
+        f.write(":wait\r\n")
+        f.write('del "' + cur + '" >nul 2>nul\r\n')
+        f.write('if exist "' + cur + '" (\r\n')
+        f.write("  ping -n 2 127.0.0.1 >nul\r\n")
+        f.write("  goto wait\r\n")
+        f.write(")\r\n")
+        f.write('move /y "' + new_exe + '" "' + cur + '" >nul\r\n')
+        f.write('start "" "' + cur + '"\r\n')
+        f.write('del "%~f0"\r\n')
+
+    subprocess.Popen(["cmd", "/c", bat], creationflags=0x08000000, close_fds=True)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Запуск
+# ---------------------------------------------------------------------------
 def main():
     create_desktop_shortcut()
     url = load_address()
     if not url:
         return
+
+    if check_and_offer_update(url):
+        # Идёт обновление — закрываемся, чтобы файл программы освободился.
+        os._exit(0)
+
     webview.create_window(
         "Поговорим", url, width=1000, height=760, min_size=(420, 560)
     )
-    # private_mode=False + storage_path — чтобы вход сохранялся между запусками
-    # (иначе при каждом открытии программа «забывала» бы cookie и выкидывала из аккаунта).
     webview.start(
         private_mode=False,
         storage_path=os.path.join(base_dir(), "appdata"),

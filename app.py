@@ -24,9 +24,11 @@ from flask import (
     Response,
     flash,
     g,
+    jsonify,
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -439,6 +441,33 @@ def service_worker():
     resp = Response(render_template("sw.js"), mimetype="application/javascript")
     resp.headers["Service-Worker-Allowed"] = "/"
     return resp
+
+
+# Файл программы для ПК и её версия (лежат в папке desktop проекта)
+DESKTOP_EXE = os.path.join(BASE_DIR, "desktop", "Pogovorim.exe")
+DESKTOP_VERSION_FILE = os.path.join(BASE_DIR, "desktop", "version.txt")
+
+
+@app.route("/desktop-version")
+def desktop_version():
+    """Сообщает программе на ПК: какая сейчас версия и откуда скачать новую."""
+    version = "1.0"
+    try:
+        with open(DESKTOP_VERSION_FILE, "r", encoding="utf-8") as f:
+            version = f.read().strip() or "1.0"
+    except OSError:
+        pass
+    return jsonify(
+        {"version": version, "url": url_for("desktop_download", _external=True)}
+    )
+
+
+@app.route("/desktop-download")
+def desktop_download():
+    """Отдаёт файл программы для ПК (нужен для автоматического обновления)."""
+    if not os.path.exists(DESKTOP_EXE):
+        return ("Файл программы не найден", 404)
+    return send_file(DESKTOP_EXE, as_attachment=True, download_name="Pogovorim.exe")
 
 
 @app.route("/register", methods=["GET", "POST"])

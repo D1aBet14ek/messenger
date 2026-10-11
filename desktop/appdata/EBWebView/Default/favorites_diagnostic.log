@@ -1,0 +1,19 @@
+2026-10-11 12:11:55.702: [INFO] CurrentProfilePath: C:\Users\Admin\Desktop\messenger\desktop\appdata\EBWebView\Default
+2026-10-11 12:11:55.702: [INFO] Profiles total count: 1
+2026-10-11 12:11:55.702: [INFO] Profile: name=Профиль 1 path=C:\Users\Admin\Desktop\messenger\desktop\appdata\EBWebView\Default lastActive=null
+2026-10-11 12:11:55.702: [INFO] LastUsedProfileDir: C:\Users\Admin\Desktop\messenger\desktop\appdata\EBWebView\Default
+2026-10-11 12:11:55.702: [INFO] OnDoneLoading sync enabled: 0
+2026-10-11 12:11:55.702: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-10-11 12:11:55.702: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-10-11 12:11:55.702: [INFO] BookmarksSnapshot Startup total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-10-11 12:12:13.561: [INFO] BookmarksSnapshot Shutdown total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-10-11 12:12:17.104: [INFO] CurrentProfilePath: C:\Users\Admin\Desktop\messenger\desktop\appdata\EBWebView\Default
+2026-10-11 12:12:17.104: [INFO] Profiles total count: 1
+2026-10-11 12:12:17.104: [INFO] Profile: name=Профиль 1 path=C:\Users\Admin\Desktop\messenger\desktop\appdata\EBWebView\Default lastActive=2026-10-11T12:12:12.257Z
+2026-10-11 12:12:17.104: [INFO] LastUsedProfileDir: C:\Users\Admin\Desktop\messenger\desktop\appdata\EBWebView\Default
+2026-10-11 12:12:17.104: [INFO] MostRecentlyActiveProfile: name=Профиль 1 path=C:\Users\Admin\Desktop\messenger\desktop\appdata\EBWebView\Default lastActive=2026-10-11T12:12:12.257Z
+2026-10-11 12:12:17.104: [INFO] OnDoneLoading sync enabled: 0
+2026-10-11 12:12:17.104: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-10-11 12:12:17.104: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-10-11 12:12:17.104: [INFO] BookmarksSnapshot Startup total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-10-11 12:12:20.464: [INFO] BookmarksSnapshot Shutdown total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1

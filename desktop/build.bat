@@ -22,11 +22,12 @@ echo [3/4] Собираю программу (1-2 минуты)...
 %PY% -m PyInstaller --noconfirm --onefile --windowed --name Pogovorim --icon=app.ico desktop_app.py
 
 echo.
+echo [4/4] Копирую готовый файл...
+copy /y "dist\Pogovorim.exe" "Pogovorim.exe" >nul
+
+echo.
 echo ==================================================
-echo   ГОТОВО!
-echo   Программа лежит здесь:
-echo   desktop\dist\Pogovorim.exe
-echo   (можно переименовать, например в Pogovorim.exe)
+echo   ГОТОВО!  Программа:  desktop\Pogovorim.exe
 echo ==================================================
 echo.
 pause
