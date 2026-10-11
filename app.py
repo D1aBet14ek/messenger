@@ -815,7 +815,7 @@ def settings_background():
         )
         conn.commit()
         flash("Фон чата сохранён.")
-    return redirect(url_for("settings"))
+    return redirect(url_for("settings_appearance"))
 
 
 @app.route("/settings/theme", methods=["POST"])
@@ -833,7 +833,7 @@ def settings_theme():
         )
         conn.commit()
         flash("Тема изменена.")
-    return redirect(url_for("settings"))
+    return redirect(url_for("settings_appearance"))
 
 
 @app.route("/settings/appbg", methods=["POST"])
@@ -853,68 +853,108 @@ def settings_appbg():
         )
         conn.commit()
         flash("Фон приложения сохранён.")
-    return redirect(url_for("settings"))
+    return redirect(url_for("settings_appearance"))
 
 
-@app.route("/settings/password", methods=["POST"])
-def settings_password():
-    """Смена пароля (перенесено из профиля в настройки)."""
+@app.route("/settings/appearance")
+def settings_appearance():
+    """Экран «Оформление»: тема и фоны."""
     r = not_logged_in_redirect()
     if r:
         return r
     me = current_user()
-    password = request.form.get("password", "")
-    password2 = request.form.get("password2", "")
-    if len(password) < 6:
-        flash("Пароль: минимум 6 символов.")
-    elif password != password2:
-        flash("Пароли не совпадают.")
-    else:
-        conn = get_conn()
+    conn = get_conn()
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+    return render_template(
+        "settings_appearance.html",
+        user=user,
+        backgrounds=BACKGROUNDS,
+        background=me["background"] or "default",
+    )
+
+
+@app.route("/settings/account", methods=["GET", "POST"])
+def settings_account():
+    """Экран «Аккаунт»: смена пароля."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        password2 = request.form.get("password2", "")
+        if len(password) < 6:
+            flash("Пароль: минимум 6 символов.")
+        elif password != password2:
+            flash("Пароли не совпадают.")
+        else:
+            conn.execute(
+                update(users_table)
+                .where(users_table.c.id == me["id"])
+                .values(password_hash=generate_password_hash(password))
+            )
+            conn.commit()
+            flash("Пароль изменён. 🔐")
+        return redirect(url_for("settings_account"))
+
+    return render_template("settings_account.html", user=user)
+
+
+@app.route("/settings/privacy", methods=["GET", "POST"])
+def settings_privacy():
+    """Экран «Конфиденциальность»: скрывать, что я в сети."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+
+    if request.method == "POST":
         conn.execute(
             update(users_table)
             .where(users_table.c.id == me["id"])
-            .values(password_hash=generate_password_hash(password))
+            .values(hide_online=1 if request.form.get("hide_online") else 0)
         )
         conn.commit()
-        flash("Пароль изменён. 🔐")
-    return redirect(url_for("settings"))
+        flash("Настройка сохранена. 🔒")
+        return redirect(url_for("settings_privacy"))
+
+    return render_template("settings_privacy.html", user=user)
 
 
-@app.route("/settings/privacy", methods=["POST"])
-def settings_privacy():
-    """Конфиденциальность: скрывать, что я в сети."""
+@app.route("/settings/power", methods=["GET", "POST"])
+def settings_power():
+    """Экран «Экономия заряда»: автообновление чатов."""
     r = not_logged_in_redirect()
     if r:
         return r
     me = current_user()
     conn = get_conn()
-    conn.execute(
-        update(users_table)
-        .where(users_table.c.id == me["id"])
-        .values(hide_online=1 if request.form.get("hide_online") else 0)
-    )
-    conn.commit()
-    flash("Настройка конфиденциальности сохранена. 🔒")
-    return redirect(url_for("settings"))
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
 
+    if request.method == "POST":
+        conn.execute(
+            update(users_table)
+            .where(users_table.c.id == me["id"])
+            .values(auto_refresh=1 if request.form.get("auto_refresh") else 0)
+        )
+        conn.commit()
+        flash("Настройка сохранена. 🔋")
+        return redirect(url_for("settings_power"))
 
-@app.route("/settings/autorefresh", methods=["POST"])
-def settings_autorefresh():
-    """Экономия заряда: включать/выключать автообновление чатов."""
-    r = not_logged_in_redirect()
-    if r:
-        return r
-    me = current_user()
-    conn = get_conn()
-    conn.execute(
-        update(users_table)
-        .where(users_table.c.id == me["id"])
-        .values(auto_refresh=1 if request.form.get("auto_refresh") else 0)
-    )
-    conn.commit()
-    flash("Настройка автообновления сохранена. 🔋")
-    return redirect(url_for("settings"))
+    return render_template("settings_power.html", user=user)
 
 
 @app.route("/avatar/<int:user_id>")

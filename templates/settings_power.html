@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Экономия заряда — Поговорим{% endblock %}
+
+{% block content %}
+<h1>🔋 Экономия заряда</h1>
+<p class="muted"><a href="{{ url_for('settings') }}">← Настройки</a></p>
+
+<form method="post" action="{{ url_for('settings_power') }}" class="card">
+  <label class="checkline">
+    <input type="checkbox" name="auto_refresh" value="1"
+           {% if user['auto_refresh'] is none or user['auto_refresh'] %}checked{% endif %}>
+    <span>Автообновление чатов</span>
+  </label>
+  <p class="muted">Выключи, чтобы беречь заряд батареи. Тогда новые сообщения появятся после обновления страницы.</p>
+  <button class="btn" type="submit">Сохранить</button>
+</form>
+
+<script>
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { window.location.href = "{{ url_for('settings') }}"; }
+  });
+</script>
+{% endblock %}

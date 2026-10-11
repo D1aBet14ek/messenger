@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Конфиденциальность — Поговорим{% endblock %}
+
+{% block content %}
+<h1>🔒 Конфиденциальность</h1>
+<p class="muted"><a href="{{ url_for('settings') }}">← Настройки</a></p>
+
+<form method="post" action="{{ url_for('settings_privacy') }}" class="card">
+  <label class="checkline">
+    <input type="checkbox" name="hide_online" value="1" {% if user['hide_online'] %}checked{% endif %}>
+    <span>Скрывать, что я в сети</span>
+  </label>
+  <p class="muted">Если включено — другие не увидят твой зелёный кружок.</p>
+  <button class="btn" type="submit">Сохранить</button>
+</form>
+
+<script>
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { window.location.href = "{{ url_for('settings') }}"; }
+  });
+</script>
+{% endblock %}

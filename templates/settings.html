@@ -4,7 +4,7 @@
 {% block content %}
 <h1>⚙️ Настройки</h1>
 
-{# Ссылка на профиль (кто ты) #}
+{# Кто ты — ссылка на профиль #}
 <a class="card me-link" href="{{ url_for('profile') }}">
   {% if user['avatar'] %}
     <img class="avatar img" src="{{ url_for('avatar', user_id=user['id']) }}" alt="">
@@ -13,85 +13,60 @@
   {% endif %}
   <span class="ptext">
     <span class="pname">{{ user['display_name'] }}</span>
-    <span class="plogin">@{{ user['username'] }} · имя, аватар, описание</span>
+    <span class="plogin">@{{ user['username'] }}</span>
   </span>
   <span class="parrow">→</span>
 </a>
 
-<h2 class="settings-section">🎨 Оформление</h2>
-
-<form method="post" action="{{ url_for('settings_theme') }}" class="card">
-  <p class="muted">Тема оформления:</p>
-  <div class="theme-row">
-    <button class="btn{% if (user['theme'] or 'light') == 'dark' %} ghost{% endif %}"
-            type="submit" name="theme" value="light">☀️ Светлая</button>
-    <button class="btn{% if (user['theme'] or 'light') != 'dark' %} ghost{% endif %}"
-            type="submit" name="theme" value="dark">🌙 Тёмная</button>
-  </div>
-</form>
-
-<form method="post" action="{{ url_for('settings_background') }}" class="card">
-  <p class="muted">Фон чатов:</p>
-  <div class="bg-bar">
-    {% for b in backgrounds %}
-      <button class="bg-swatch bg-{{ b }}" type="submit" name="set_bg" value="{{ b }}"
-              title="Выбрать фон"></button>
-    {% endfor %}
-  </div>
-</form>
-
-<form method="post" action="{{ url_for('settings_appbg') }}" class="card">
-  <p class="muted">Фон приложения (окошек и меню — не чатов):</p>
-  <div class="bg-bar">
-    <button class="bg-swatch standard" type="submit" name="app_bg" value=""
-            title="Стандартный">—</button>
-    {% for b in backgrounds %}
-      <button class="bg-swatch bg-{{ b }}" type="submit" name="app_bg" value="{{ b }}"
-              title="Выбрать фон"></button>
-    {% endfor %}
-  </div>
-</form>
-
-<h2 class="settings-section">🔒 Конфиденциальность</h2>
-<form method="post" action="{{ url_for('settings_privacy') }}" class="card">
-  <label class="checkline">
-    <input type="checkbox" name="hide_online" value="1" {% if user['hide_online'] %}checked{% endif %}>
-    <span>Скрывать, что я в сети (другие не увидят зелёный кружок)</span>
-  </label>
-  <button class="btn" type="submit">Сохранить</button>
-</form>
-
-<h2 class="settings-section">🔋 Экономия заряда</h2>
-<form method="post" action="{{ url_for('settings_autorefresh') }}" class="card">
-  <label class="checkline">
-    <input type="checkbox" name="auto_refresh" value="1"
-           {% if user['auto_refresh'] is none or user['auto_refresh'] %}checked{% endif %}>
-    <span>Автообновление чатов (выключи, чтобы экономить заряд батареи)</span>
-  </label>
-  <button class="btn" type="submit">Сохранить</button>
-</form>
-
-<h2 class="settings-section">👤 Аккаунт</h2>
-<form method="post" action="{{ url_for('settings_password') }}" class="card">
-  <p class="muted">Смена пароля:</p>
-  <label>Новый пароль
-    <input name="password" type="password" autocomplete="new-password">
-  </label>
-  <label>Повтори новый пароль
-    <input name="password2" type="password" autocomplete="new-password">
-  </label>
-  <button class="btn" type="submit">Сменить пароль</button>
-  <p class="muted">Имя и аватар меняются в <a href="{{ url_for('profile') }}">профиле</a>.</p>
-</form>
+{# Разделы — кнопки, по нажатию открывается экран с настройками #}
+<ul class="settings-menu">
+  <li>
+    <a class="settings-row" href="{{ url_for('settings_appearance') }}">
+      <span class="sicon">🎨</span>
+      <span class="ptext">
+        <span class="pname">Оформление</span>
+        <span class="plogin">Тема и фоны</span>
+      </span>
+      <span class="parrow">→</span>
+    </a>
+  </li>
+  <li>
+    <a class="settings-row" href="{{ url_for('settings_privacy') }}">
+      <span class="sicon">🔒</span>
+      <span class="ptext">
+        <span class="pname">Конфиденциальность</span>
+        <span class="plogin">Кто видит, что я в сети</span>
+      </span>
+      <span class="parrow">→</span>
+    </a>
+  </li>
+  <li>
+    <a class="settings-row" href="{{ url_for('settings_power') }}">
+      <span class="sicon">🔋</span>
+      <span class="ptext">
+        <span class="pname">Экономия заряда</span>
+        <span class="plogin">Автообновление чатов</span>
+      </span>
+      <span class="parrow">→</span>
+    </a>
+  </li>
+  <li>
+    <a class="settings-row" href="{{ url_for('settings_account') }}">
+      <span class="sicon">👤</span>
+      <span class="ptext">
+        <span class="pname">Аккаунт</span>
+        <span class="plogin">Смена пароля</span>
+      </span>
+      <span class="parrow">→</span>
+    </a>
+  </li>
+</ul>
 
 <p class="muted"><a href="{{ url_for('users') }}">← Назад к чатам</a></p>
 
 <script>
-  // Esc в настройках — вернуться к чатам
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") {
-      window.location.href = "{{ url_for('users') }}";
-    }
+    if (e.key === "Escape") { window.location.href = "{{ url_for('users') }}"; }
   });
 </script>
 {% endblock %}

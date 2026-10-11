@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Аккаунт — Поговорим{% endblock %}
+
+{% block content %}
+<h1>👤 Аккаунт</h1>
+<p class="muted"><a href="{{ url_for('settings') }}">← Настройки</a></p>
+
+<form method="post" action="{{ url_for('settings_account') }}" class="card">
+  <p class="muted">Смена пароля:</p>
+  <label>Новый пароль
+    <input name="password" type="password" autocomplete="new-password">
+  </label>
+  <label>Повтори новый пароль
+    <input name="password2" type="password" autocomplete="new-password">
+  </label>
+  <button class="btn" type="submit">Сменить пароль</button>
+  <p class="muted">Имя, аватар и описание меняются в
+    <a href="{{ url_for('profile') }}">профиле</a>.</p>
+</form>
+
+<script>
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { window.location.href = "{{ url_for('settings') }}"; }
+  });
+</script>
+{% endblock %}
