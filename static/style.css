@@ -201,6 +201,44 @@ input:focus { outline: 2px solid var(--brand); border-color: transparent; }
 }
 .emoji-btn:hover { background: #f4f7ff; border-color: var(--brand); }
 
+/* Имя автора в групповом сообщении */
+.sender { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+
+/* Значок «админ» */
+.badge {
+  display: inline-block;
+  background: #eaf1ff;
+  color: #1f3a76;
+  border: 1px solid #c9dbff;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+/* Аватары: для групп и уменьшенные */
+.avatar.group { background: var(--muted); font-size: 18px; }
+.avatar.small { width: 30px; height: 30px; flex: 0 0 30px; font-size: 14px; }
+
+/* Список галочек (выбор людей) */
+.checklist { list-style: none; margin: 8px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.checkline { flex-direction: row; align-items: center; gap: 10px; font-weight: 400; cursor: pointer; }
+.checkline input[type="checkbox"] { width: 18px; height: 18px; padding: 0; flex: 0 0 auto; }
+
+/* Панель участников группы */
+.group-panel {
+  margin-top: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 20px;
+}
+.panel-title { font-size: 16px; margin: 12px 0 8px; }
+.member-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.member-list li { display: flex; align-items: center; gap: 10px; }
+.inline-form { margin-left: auto; }
+
 @media (max-width: 520px) {
   .msg { max-width: 90%; }
   .who { display: none; }

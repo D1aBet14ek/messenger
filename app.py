@@ -39,6 +39,7 @@ from sqlalchemy import (
     Text,
     and_,
     create_engine,
+    delete,
     func,
     insert,
     or_,
@@ -128,6 +129,37 @@ messages_table = Table(
     Column("recipient_id", Integer, ForeignKey("users.id"), nullable=False),  # кому
     Column("body", Text, nullable=False),                                     # текст
     Column("created_at", String(30), nullable=False),                         # когда
+)
+
+# Таблица «Группы» (общие беседы)
+groups_table = Table(
+    "groups",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String(60), nullable=False),                              # название группы
+    Column("created_by", Integer, ForeignKey("users.id"), nullable=False),   # кто создал
+    Column("created_at", String(30), nullable=False),
+)
+
+# Таблица «Участники групп» — кто в какой группе и кем является
+group_members_table = Table(
+    "group_members",
+    metadata,
+    Column("group_id", Integer, ForeignKey("groups.id"), primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("role", String(10), nullable=False),   # "admin" — админ, "member" — участник
+    Column("joined_at", String(30), nullable=False),
+)
+
+# Таблица «Сообщения групп»
+group_messages_table = Table(
+    "group_messages",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("group_id", Integer, ForeignKey("groups.id"), nullable=False),
+    Column("sender_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("body", Text, nullable=False),
+    Column("created_at", String(30), nullable=False),
 )
 
 
@@ -317,7 +349,20 @@ def users():
         .where(users_table.c.id != me["id"])
         .order_by(func.lower(users_table.c.display_name))
     ).mappings().all()
-    return render_template("users.html", others=others)
+
+    # Мои группы (где я участник)
+    my_groups = conn.execute(
+        select(groups_table.c.id, groups_table.c.name)
+        .select_from(
+            groups_table.join(
+                group_members_table, groups_table.c.id == group_members_table.c.group_id
+            )
+        )
+        .where(group_members_table.c.user_id == me["id"])
+        .order_by(func.lower(groups_table.c.name))
+    ).mappings().all()
+
+    return render_template("users.html", others=others, groups=my_groups)
 
 
 @app.route("/chat/<int:other_id>", methods=["GET", "POST"])
@@ -402,6 +447,7 @@ def conversation(conn, me_id, other_id):
             "mine": row["sender_id"] == me_id,
             "body": row["body"],
             "time": format_time(row["created_at"]),
+            "sender": None,  # в личном чате имя показывать не нужно
         }
         for row in rows
     ]
@@ -433,6 +479,278 @@ def messages(other_id):
         other=other,
         messages=conversation(conn, me["id"], other["id"]),
     )
+
+
+# ---------------------------------------------------------------------------
+# 4b. ГРУППЫ (общие беседы с админами)
+# ---------------------------------------------------------------------------
+
+
+def group_membership(conn, group_id, user_id):
+    """Участие человека в группе: возвращает роль («admin»/«member») или None."""
+    return conn.execute(
+        select(group_members_table.c.role).where(
+            and_(
+                group_members_table.c.group_id == group_id,
+                group_members_table.c.user_id == user_id,
+            )
+        )
+    ).mappings().first()
+
+
+def group_conversation(conn, group_id, me_id):
+    """Сообщения группы по порядку, вместе с именами авторов."""
+    rows = conn.execute(
+        select(
+            group_messages_table.c.sender_id,
+            group_messages_table.c.body,
+            group_messages_table.c.created_at,
+            users_table.c.display_name,
+        )
+        .select_from(
+            group_messages_table.join(
+                users_table, group_messages_table.c.sender_id == users_table.c.id
+            )
+        )
+        .where(group_messages_table.c.group_id == group_id)
+        .order_by(group_messages_table.c.id)
+    ).mappings().all()
+    return [
+        {
+            "mine": row["sender_id"] == me_id,
+            "body": row["body"],
+            "time": format_time(row["created_at"]),
+            "sender": row["display_name"],
+        }
+        for row in rows
+    ]
+
+
+@app.route("/groups/new", methods=["GET", "POST"])
+def new_group():
+    """Создание новой группы. Создатель становится администратором."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    others = conn.execute(
+        select(users_table.c.id, users_table.c.username, users_table.c.display_name)
+        .where(users_table.c.id != me["id"])
+        .order_by(func.lower(users_table.c.display_name))
+    ).mappings().all()
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        chosen = request.form.getlist("members")  # отмеченные галочками люди
+
+        if not (1 <= len(name) <= 60):
+            flash("Название группы: от 1 до 60 символов.")
+        else:
+            now = datetime.now().isoformat(timespec="seconds")
+            result = conn.execute(
+                insert(groups_table).values(
+                    name=name, created_by=me["id"], created_at=now
+                )
+            )
+            group_id = result.inserted_primary_key[0]
+
+            # Создатель — админ группы
+            conn.execute(
+                insert(group_members_table).values(
+                    group_id=group_id, user_id=me["id"], role="admin", joined_at=now
+                )
+            )
+            # Отмеченные люди — участники
+            for raw_id in chosen:
+                try:
+                    uid = int(raw_id)
+                except ValueError:
+                    continue
+                if uid == me["id"]:
+                    continue
+                conn.execute(
+                    insert(group_members_table).values(
+                        group_id=group_id, user_id=uid, role="member", joined_at=now
+                    )
+                )
+            conn.commit()
+            flash("Группа «{}» создана!".format(name))
+            return redirect(url_for("group_chat", group_id=group_id))
+
+    return render_template("new_group.html", others=others)
+
+
+@app.route("/groups/<int:group_id>", methods=["GET", "POST"])
+def group_chat(group_id):
+    """Чат внутри группы."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    group = conn.execute(
+        select(groups_table).where(groups_table.c.id == group_id)
+    ).mappings().first()
+    membership = group_membership(conn, group_id, me["id"])
+
+    if group is None or membership is None:
+        flash("Такой группы нет или ты не её участник.")
+        return redirect(url_for("users"))
+
+    draft_key = "gdraft_{}".format(group_id)
+
+    if request.method == "POST":
+        raw = request.form.get("body", "")
+        body = raw.strip()
+        emoji = request.form.get("add_emoji")
+        if emoji:
+            session[draft_key] = (raw + emoji)[:2000]
+            return redirect(url_for("group_chat", group_id=group_id))
+        if not body:
+            flash("Пустое сообщение отправлять не нужно. 🙂")
+            session[draft_key] = ""
+        elif len(body) > 2000:
+            flash("Слишком длинное сообщение (максимум 2000 символов).")
+            session[draft_key] = raw[:2000]
+        else:
+            conn.execute(
+                insert(group_messages_table).values(
+                    group_id=group_id,
+                    sender_id=me["id"],
+                    body=body,
+                    created_at=datetime.now().isoformat(timespec="seconds"),
+                )
+            )
+            conn.commit()
+            session.pop(draft_key, None)
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    # Участники группы
+    members = conn.execute(
+        select(
+            group_members_table.c.user_id,
+            group_members_table.c.role,
+            users_table.c.display_name,
+            users_table.c.username,
+        )
+        .select_from(
+            group_members_table.join(
+                users_table, group_members_table.c.user_id == users_table.c.id
+            )
+        )
+        .where(group_members_table.c.group_id == group_id)
+        .order_by(group_members_table.c.role, func.lower(users_table.c.display_name))
+    ).mappings().all()
+
+    # Люди, которых ещё нет в группе (чтобы админ мог добавить)
+    member_ids = {m["user_id"] for m in members}
+    everybody = conn.execute(
+        select(users_table.c.id, users_table.c.username, users_table.c.display_name)
+        .where(users_table.c.id != me["id"])
+        .order_by(func.lower(users_table.c.display_name))
+    ).mappings().all()
+    candidates = [u for u in everybody if u["id"] not in member_ids]
+
+    draft = session.get(draft_key, "")
+    return render_template(
+        "group_chat.html",
+        group=group,
+        members=members,
+        candidates=candidates,
+        draft=draft,
+        emoji=EMOJI,
+        is_admin=(membership["role"] == "admin"),
+    )
+
+
+@app.route("/group-messages/<int:group_id>")
+def group_messages(group_id):
+    """Окошко с сообщениями группы (для самообновляемой рамки iframe)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    if group_membership(conn, group_id, me["id"]) is None:
+        return redirect(url_for("users"))
+
+    return render_template(
+        "chat_messages.html",
+        messages=group_conversation(conn, group_id, me["id"]),
+    )
+
+
+@app.route("/groups/<int:group_id>/add", methods=["POST"])
+def group_add_members(group_id):
+    """Админ добавляет в группу новых людей."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    if membership is None:
+        return redirect(url_for("users"))
+    if membership["role"] != "admin":
+        flash("Добавлять людей может только админ группы.")
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    now = datetime.now().isoformat(timespec="seconds")
+    added = 0
+    for raw_id in request.form.getlist("members"):
+        try:
+            uid = int(raw_id)
+        except ValueError:
+            continue
+        if uid == me["id"]:
+            continue
+        if group_membership(conn, group_id, uid) is None:
+            conn.execute(
+                insert(group_members_table).values(
+                    group_id=group_id, user_id=uid, role="member", joined_at=now
+                )
+            )
+            added += 1
+    conn.commit()
+    flash("Добавлено людей: {}.".format(added) if added else "Никого не выбрано.")
+    return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/groups/<int:group_id>/remove/<int:user_id>", methods=["POST"])
+def group_remove_member(group_id, user_id):
+    """Админ убирает человека из группы."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    if membership is None:
+        return redirect(url_for("users"))
+    if membership["role"] != "admin":
+        flash("Убирать людей может только админ группы.")
+        return redirect(url_for("group_chat", group_id=group_id))
+    if user_id == me["id"]:
+        flash("Себя из группы убрать нельзя.")
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    conn.execute(
+        delete(group_members_table).where(
+            and_(
+                group_members_table.c.group_id == group_id,
+                group_members_table.c.user_id == user_id,
+            )
+        )
+    )
+    conn.commit()
+    flash("Человек убран из группы.")
+    return redirect(url_for("group_chat", group_id=group_id))
 
 
 # ---------------------------------------------------------------------------

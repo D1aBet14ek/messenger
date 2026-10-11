@@ -3,15 +3,38 @@
 
 {% block head %}
   {#
-    Список людей сам обновляется каждые 5 секунд: браузер перезагружает страницу.
-    Тут нет поля ввода, поэтому перезагружать целиком безопасно — ничего не потеряется.
-    Никакого JavaScript не нужно.
+    Список сам обновляется каждые 5 секунд: браузер перезагружает страницу.
+    Тут нет поля ввода, поэтому перезагружать целиком безопасно. Без JavaScript.
   #}
   <meta http-equiv="refresh" content="5">
 {% endblock %}
 
 {% block content %}
-<h1>Выбери, с кем поговорить</h1>
+<h1>Твои группы</h1>
+<p><a class="btn" href="{{ url_for('new_group') }}">+ Создать группу</a></p>
+
+{% if groups %}
+  <ul class="people">
+    {% for g in groups %}
+      <li>
+        <a class="person" href="{{ url_for('group_chat', group_id=g['id']) }}">
+          <span class="avatar group">👥</span>
+          <span class="ptext">
+            <span class="pname">{{ g['name'] }}</span>
+            <span class="plogin">группа</span>
+          </span>
+          <span class="parrow">→</span>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="card">
+    <p class="muted">Групп пока нет. Создай первую и добавь друзей.</p>
+  </div>
+{% endif %}
+
+<h1>Люди</h1>
 
 {% if others %}
   <ul class="people">
@@ -36,6 +59,6 @@
 {% endif %}
 
 <p class="muted center small-hint">
-  Список обновляется сам — новые люди появляются примерно каждые 5 секунд. 🙂
+  Список обновляется сам — новые люди и группы появляются примерно каждые 5 секунд. 🙂
 </p>
 {% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Новая группа — Поговорим{% endblock %}
+
+{% block content %}
+<h1>Создать группу</h1>
+<p class="muted">Ты станешь <b>админом</b> группы. Остальных можно отметить сразу
+или добавить потом.</p>
+
+<form method="post" class="card">
+  <label>Название группы
+    <input name="name" required maxlength="60" placeholder="Например: Друзья" autofocus>
+  </label>
+
+  <div>
+    <p class="muted">Кого добавить сразу (можно никого):</p>
+    {% if others %}
+      <ul class="checklist">
+        {% for u in others %}
+          <li>
+            <label class="checkline">
+              <input type="checkbox" name="members" value="{{ u['id'] }}">
+              <span>{{ u['display_name'] }}
+                <span class="plogin">@{{ u['username'] }}</span></span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Пока других людей нет — создай группу и добавь их позже.</p>
+    {% endif %}
+  </div>
+
+  <button class="btn" type="submit">Создать группу</button>
+  <p class="muted"><a href="{{ url_for('users') }}">← Назад к списку</a></p>
+</form>
+{% endblock %}

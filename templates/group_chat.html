@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Группа «{{ group['name'] }}» — Поговорим{% endblock %}
+
+{% block content %}
+<div class="chat-head">
+  <a class="btn small ghost" href="{{ url_for('users') }}">← Все чаты</a>
+  <h1>👥 {{ group['name'] }}</h1>
+  {% if is_admin %}<span class="badge">ты админ</span>{% endif %}
+  <a class="btn small" href="{{ url_for('group_chat', group_id=group['id']) }}">🔄 Обновить</a>
+</div>
+
+{# Рамка с сообщениями группы — обновляется сама (без JavaScript) #}
+<iframe class="messages-frame"
+        src="{{ url_for('group_messages', group_id=group['id']) }}"
+        title="Сообщения группы"></iframe>
+
+{# Отправка текста и смайликов — как в личном чате #}
+<form method="post" class="composer-box" autocomplete="off">
+  <div class="composer">
+    <input name="body" id="body" placeholder="Напиши сообщение группе..." maxlength="2000" value="{{ draft }}" autofocus>
+    <button class="btn" type="submit" name="send" value="1">Отправить</button>
+  </div>
+  <div class="emoji-bar">
+    {% for e in emoji %}
+      <button class="emoji-btn" type="submit" name="add_emoji" value="{{ e }}"
+              title="Добавить смайлик">{{ e }}</button>
+    {% endfor %}
+  </div>
+</form>
+
+<div class="group-panel">
+  <h2 class="panel-title">Участники ({{ members|length }})</h2>
+  <ul class="member-list">
+    {% for m in members %}
+      <li>
+        <span class="avatar small">{{ m['display_name'][0]|upper }}</span>
+        <span class="ptext">
+          <span class="pname">{{ m['display_name'] }}
+            {% if m['role'] == 'admin' %}<span class="badge">админ</span>{% endif %}</span>
+          <span class="plogin">@{{ m['username'] }}</span>
+        </span>
+        {% if is_admin and m['role'] != 'admin' %}
+          <form method="post" class="inline-form"
+                action="{{ url_for('group_remove_member', group_id=group['id'], user_id=m['user_id']) }}">
+            <button class="btn small ghost" type="submit">Убрать</button>
+          </form>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if is_admin %}
+    <h2 class="panel-title">Добавить людей</h2>
+    {% if candidates %}
+      <form method="post" action="{{ url_for('group_add_members', group_id=group['id']) }}">
+        <ul class="checklist">
+          {% for u in candidates %}
+            <li>
+              <label class="checkline">
+                <input type="checkbox" name="members" value="{{ u['id'] }}">
+                <span>{{ u['display_name'] }}
+                  <span class="plogin">@{{ u['username'] }}</span></span>
+              </label>
+            </li>
+          {% endfor %}
+        </ul>
+        <button class="btn" type="submit">Добавить в группу</button>
+      </form>
+    {% else %}
+      <p class="muted">Все уже в группе.</p>
+    {% endif %}
+  {% else %}
+    <p class="muted">Добавлять и убирать людей может только админ группы.</p>
+  {% endif %}
+</div>
+{% endblock %}
