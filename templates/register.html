@@ -3,12 +3,12 @@
 
 {% block content %}
 <h1>Представься 👋</h1>
-<p class="muted">Придумай логин, имя для показа и пароль — и ты в мессенджере.</p>
+<p class="muted">Зарегистрируйся по номеру телефона — он будет твоим входом.</p>
 
 <form method="post" class="card">
-  <label>Логин (латинскими буквами)
-    <input name="username" required maxlength="20" placeholder="anna_2026" autocomplete="username">
-    <span class="hint">Это как адрес: буквы, цифры и «_», от 3 до 20 символов.</span>
+  <label>Номер телефона
+    <input name="phone" required maxlength="20" placeholder="+7 900 123-45-67" autocomplete="tel">
+    <span class="hint">По нему ты будешь входить, и по нему тебя смогут добавить в друзья.</span>
   </label>
 
   <label>Имя для показа

@@ -121,13 +121,25 @@ users_table = Table(
     "users",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("username", String(20), nullable=False, unique=True),   # логин
+    Column("username", String(20), nullable=False, unique=True),   # логин (у телефона = цифры)
+    Column("phone", String(20)),                                   # номер телефона
     Column("display_name", String(40), nullable=False),            # имя для показа
     Column("password_hash", Text, nullable=False),                 # отпечаток пароля
     Column("created_at", String(30), nullable=False),
     Column("bio", Text),                                           # описание (о себе)
     Column("avatar", LargeBinary),                                 # картинка-аватар
     Column("avatar_mime", String(50)),                             # вид картинки (png/jpeg)
+)
+
+# Таблица «Дружбы» — заявки и подтверждённые друзья
+friendships_table = Table(
+    "friendships",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("requester_id", Integer, ForeignKey("users.id"), nullable=False),  # кто пригласил
+    Column("addressee_id", Integer, ForeignKey("users.id"), nullable=False),  # кого пригласили
+    Column("status", String(10), nullable=False),   # "pending" — заявка, "accepted" — друзья
+    Column("created_at", String(30), nullable=False),
 )
 
 # Таблица «Сообщения»
@@ -186,6 +198,7 @@ def ensure_columns():
     # В разных базах данных свой тип для «двоичных данных»
     blob_type = "BYTEA" if engine.dialect.name == "postgresql" else "BLOB"
     needed = {
+        "phone": "VARCHAR(20)",
         "bio": "TEXT",
         "avatar": blob_type,
         "avatar_mime": "VARCHAR(50)",
@@ -275,6 +288,49 @@ def format_time(iso_string):
         return ""
 
 
+def normalize_phone(raw):
+    """Оставляем только цифры — так номера сравниваются надёжно."""
+    return "".join(ch for ch in (raw or "") if ch.isdigit())
+
+
+def friendship_between(conn, a_id, b_id):
+    """Возвращает запись о дружбе между двумя людьми (в любую сторону) или None."""
+    return conn.execute(
+        select(friendships_table).where(
+            or_(
+                and_(friendships_table.c.requester_id == a_id,
+                     friendships_table.c.addressee_id == b_id),
+                and_(friendships_table.c.requester_id == b_id,
+                     friendships_table.c.addressee_id == a_id),
+            )
+        )
+    ).mappings().first()
+
+
+def are_friends(conn, a_id, b_id):
+    """True, если два человека уже подтверждённые друзья."""
+    f = friendship_between(conn, a_id, b_id)
+    return f is not None and f["status"] == "accepted"
+
+
+def friend_ids(conn, me_id):
+    """Множество id моих друзей (подтверждённых)."""
+    rows = conn.execute(
+        select(friendships_table.c.requester_id, friendships_table.c.addressee_id)
+        .where(
+            and_(
+                friendships_table.c.status == "accepted",
+                or_(friendships_table.c.requester_id == me_id,
+                    friendships_table.c.addressee_id == me_id),
+            )
+        )
+    ).mappings().all()
+    ids = set()
+    for r in rows:
+        ids.add(r["addressee_id"] if r["requester_id"] == me_id else r["requester_id"])
+    return ids
+
+
 def user_cols():
     """
     Столбцы «профиля» пользователя. Картинку-аватар целиком НЕ тянем,
@@ -283,6 +339,7 @@ def user_cols():
     return [
         users_table.c.id,
         users_table.c.username,
+        users_table.c.phone,
         users_table.c.display_name,
         users_table.c.bio,
         users_table.c.avatar.is_not(None).label("has_avatar"),
@@ -348,20 +405,20 @@ def health():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """Страница регистрации: тут человек «представляется»."""
+    """Страница регистрации: тут человек «представляется» по номеру телефона."""
     if "user_id" in session:
         return redirect(url_for("users"))
 
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
+        phone = normalize_phone(request.form.get("phone", ""))
         display_name = request.form.get("display_name", "").strip()
         password = request.form.get("password", "")
         password2 = request.form.get("password2", "")
 
         # Проверяем всё по очереди и запоминаем одну понятную ошибку.
         error = None
-        if not valid_username(username):
-            error = "Логин: латинские буквы, цифры и «_», от 3 до 20 символов. Пример: anna_2026"
+        if not (10 <= len(phone) <= 15):
+            error = "Телефон: введи номер (10–15 цифр). Например: +7 900 123-45-67"
         elif not (1 <= len(display_name) <= 40):
             error = "Имя для показа: от 1 до 40 символов."
         elif len(password) < 6:
@@ -372,21 +429,22 @@ def register():
         if error is None:
             conn = get_conn()
             taken = conn.execute(
-                select(users_table.c.id).where(users_table.c.username == username)
+                select(users_table.c.id).where(users_table.c.phone == phone)
             ).first()
             if taken:
-                error = "Такой логин уже занят — выбери другой."
+                error = "Этот номер уже зарегистрирован — войди или возьми другой."
             else:
                 conn.execute(
                     insert(users_table).values(
-                        username=username,
+                        username=phone,       # внутренний логин = цифры номера
+                        phone=phone,
                         display_name=display_name,
                         password_hash=generate_password_hash(password),
                         created_at=datetime.now().isoformat(timespec="seconds"),
                     )
                 )
                 conn.commit()
-                flash("Аккаунт создан! Теперь войди под своим логином. 🎉")
+                flash("Аккаунт создан! Теперь войди по номеру телефона. 🎉")
                 return redirect(url_for("login"))
 
         flash(error)  # покажем сообщение об ошибке на странице
@@ -396,23 +454,27 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    """Страница входа."""
+    """Страница входа: по номеру телефона."""
     if "user_id" in session:
         return redirect(url_for("users"))
 
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
+        ident = request.form.get("phone", "").strip()
         password = request.form.get("password", "")
+        digits = normalize_phone(ident)
 
         conn = get_conn()
         user = conn.execute(
-            select(users_table).where(users_table.c.username == username)
+            select(users_table).where(
+                or_(users_table.c.phone == digits,
+                    users_table.c.username == ident)
+            )
         ).mappings().first()
 
-        # Проверяем и логин, и пароль. Сообщение об ошибке одинаковое —
-        # так чужие люди не узнают, какие логины вообще существуют.
+        # Проверяем и телефон, и пароль. Сообщение об ошибке одинаковое —
+        # так чужие люди не узнают, кто вообще зарегистрирован.
         if user is None or not check_password_hash(user["password_hash"], password):
-            flash("Неверный логин или пароль.")
+            flash("Неверный телефон или пароль.")
         else:
             session.clear()
             session["user_id"] = user["id"]
@@ -519,14 +581,9 @@ def avatar_too_large(error):
     return redirect(url_for("profile"))
 
 
-def load_chat_lists(conn, me_id):
-    """Возвращает два списка для страницы чатов: (люди, мои группы)."""
-    others = conn.execute(
-        select(*user_cols())
-        .where(users_table.c.id != me_id)
-        .order_by(func.lower(users_table.c.display_name))
-    ).mappings().all()
-
+def load_contacts(conn, me_id):
+    """Данные страницы контактов: друзья, группы, входящие и исходящие заявки."""
+    # Мои группы
     my_groups = conn.execute(
         select(groups_table.c.id, groups_table.c.name)
         .select_from(
@@ -538,14 +595,69 @@ def load_chat_lists(conn, me_id):
         .order_by(func.lower(groups_table.c.name))
     ).mappings().all()
 
-    return others, my_groups
+    # Мои друзья (только подтверждённые!)
+    ids = friend_ids(conn, me_id)
+    friends = []
+    if ids:
+        friends = conn.execute(
+            select(*user_cols())
+            .where(users_table.c.id.in_(ids))
+            .order_by(func.lower(users_table.c.display_name))
+        ).mappings().all()
+
+    # Входящие заявки в друзья (мне)
+    incoming = conn.execute(
+        select(
+            friendships_table.c.id,
+            users_table.c.id.label("user_id"),
+            users_table.c.display_name,
+            users_table.c.username,
+            users_table.c.phone,
+            users_table.c.avatar.is_not(None).label("has_avatar"),
+        )
+        .select_from(
+            friendships_table.join(
+                users_table, friendships_table.c.requester_id == users_table.c.id
+            )
+        )
+        .where(
+            and_(
+                friendships_table.c.addressee_id == me_id,
+                friendships_table.c.status == "pending",
+            )
+        )
+        .order_by(func.lower(users_table.c.display_name))
+    ).mappings().all()
+
+    # Исходящие заявки (от меня, ждут подтверждения)
+    outgoing = conn.execute(
+        select(
+            friendships_table.c.id,
+            users_table.c.display_name,
+            users_table.c.username,
+        )
+        .select_from(
+            friendships_table.join(
+                users_table, friendships_table.c.addressee_id == users_table.c.id
+            )
+        )
+        .where(
+            and_(
+                friendships_table.c.requester_id == me_id,
+                friendships_table.c.status == "pending",
+            )
+        )
+        .order_by(func.lower(users_table.c.display_name))
+    ).mappings().all()
+
+    return friends, my_groups, incoming, outgoing
 
 
 @app.route("/users")
 def users():
     """
-    Страница со списком чатов. Сам список показывается в отдельной рамке (iframe),
-    поэтому при самообновлении мигает только рамка, а не вся страница.
+    Страница контактов: добавить в друзья, список друзей и заявки.
+    Списки показываются в отдельной рамке (iframe), чтобы страница не мигала.
     """
     r = not_logged_in_redirect()
     if r:
@@ -555,14 +667,109 @@ def users():
 
 @app.route("/chats-frame")
 def chats_frame():
-    """Маленькое «окошко» со списком чатов и людей — для самообновляемой рамки."""
+    """«Окошко» с друзьями, заявками и группами — для самообновляемой рамки."""
     r = not_logged_in_redirect()
     if r:
         return r
 
     me = current_user()
-    others, my_groups = load_chat_lists(get_conn(), me["id"])
-    return render_template("chats_list.html", others=others, groups=my_groups)
+    friends, my_groups, incoming, outgoing = load_contacts(get_conn(), me["id"])
+    return render_template(
+        "chats_list.html",
+        friends=friends, groups=my_groups, incoming=incoming, outgoing=outgoing,
+    )
+
+
+@app.route("/friends/add", methods=["POST"])
+def friends_add():
+    """Отправить заявку в друзья по номеру телефона ИЛИ по имени."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    who = request.form.get("who", "").strip()
+    digits = normalize_phone(who)
+
+    # Ищем человека: сначала по телефону, потом по имени (без учёта регистра) или логину.
+    # Сравниваем в Python — так одинаково надёжно и с русскими буквами, и с латиницей.
+    target = None
+    who_lower = who.lower()
+    for u in conn.execute(select(*user_cols())).mappings().all():
+        if digits and u["phone"] == digits:
+            target = u
+            break
+        if u["username"] == who or (u["display_name"] or "").lower() == who_lower:
+            target = u
+            break
+
+    if target is None or not who:
+        flash("Не нашли такого человека. Проверь телефон или имя.")
+    elif target["id"] == me["id"]:
+        flash("Это ты сам 🙂")
+    elif friendship_between(conn, me["id"], target["id"]) is not None:
+        flash("У вас уже есть заявка или вы уже друзья.")
+    else:
+        conn.execute(
+            insert(friendships_table).values(
+                requester_id=me["id"],
+                addressee_id=target["id"],
+                status="pending",
+                created_at=datetime.now().isoformat(timespec="seconds"),
+            )
+        )
+        conn.commit()
+        flash("Заявка отправлена: {}".format(target["display_name"]))
+    return redirect(url_for("users"))
+
+
+@app.route("/friends/accept/<int:friendship_id>", methods=["POST"])
+def friends_accept(friendship_id):
+    """Принять заявку в друзья."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    f = conn.execute(
+        select(friendships_table).where(friendships_table.c.id == friendship_id)
+    ).mappings().first()
+    if f is None or f["addressee_id"] != me["id"] or f["status"] != "pending":
+        flash("Заявка не найдена.")
+    else:
+        conn.execute(
+            update(friendships_table)
+            .where(friendships_table.c.id == friendship_id)
+            .values(status="accepted")
+        )
+        conn.commit()
+        flash("Теперь вы друзья! 🎉")
+    return redirect(url_for("users"))
+
+
+@app.route("/friends/decline/<int:friendship_id>", methods=["POST"])
+def friends_decline(friendship_id):
+    """Отклонить заявку (или убрать из друзей)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    f = conn.execute(
+        select(friendships_table).where(friendships_table.c.id == friendship_id)
+    ).mappings().first()
+    if f is None or me["id"] not in (f["requester_id"], f["addressee_id"]):
+        flash("Заявка не найдена.")
+    else:
+        conn.execute(
+            delete(friendships_table).where(friendships_table.c.id == friendship_id)
+        )
+        conn.commit()
+        flash("Готово.")
+    return redirect(url_for("users"))
 
 
 @app.route("/chat/<int:other_id>", methods=["GET", "POST"])
@@ -582,6 +789,11 @@ def chat(other_id):
     # Если такого человека нет (или это я сам) — вернёмся к списку.
     if other is None or other["id"] == me["id"]:
         flash("Такого собеседника нет.")
+        return redirect(url_for("users"))
+
+    # Писать можно только друзьям.
+    if not are_friends(conn, me["id"], other["id"]):
+        flash("Сначала добавьте друг друга в друзья.")
         return redirect(url_for("users"))
 
     # Черновик — то, что человек уже набрал, но ещё не отправил.
@@ -674,6 +886,9 @@ def messages(other_id):
     if other is None or other["id"] == me["id"]:
         return redirect(url_for("users"))
 
+    if not are_friends(conn, me["id"], other["id"]):
+        return redirect(url_for("users"))
+
     return render_template(
         "chat_messages.html",
         other=other,
@@ -735,11 +950,15 @@ def new_group():
 
     me = current_user()
     conn = get_conn()
-    others = conn.execute(
-        select(*user_cols())
-        .where(users_table.c.id != me["id"])
-        .order_by(func.lower(users_table.c.display_name))
-    ).mappings().all()
+    # Добавлять в группу можно только друзей
+    ids = friend_ids(conn, me["id"])
+    others = []
+    if ids:
+        others = conn.execute(
+            select(*user_cols())
+            .where(users_table.c.id.in_(ids))
+            .order_by(func.lower(users_table.c.display_name))
+        ).mappings().all()
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -847,14 +1066,16 @@ def group_chat(group_id):
         .order_by(group_members_table.c.role, func.lower(users_table.c.display_name))
     ).mappings().all()
 
-    # Люди, которых ещё нет в группе (чтобы админ мог добавить)
+    # Друзья, которых ещё нет в группе (чтобы админ мог добавить)
     member_ids = {m["user_id"] for m in members}
-    everybody = conn.execute(
-        select(*user_cols())
-        .where(users_table.c.id != me["id"])
-        .order_by(func.lower(users_table.c.display_name))
-    ).mappings().all()
-    candidates = [u for u in everybody if u["id"] not in member_ids]
+    ids = friend_ids(conn, me["id"])
+    candidates = []
+    if ids:
+        candidates = conn.execute(
+            select(*user_cols())
+            .where(and_(users_table.c.id.in_(ids), users_table.c.id.notin_(member_ids)))
+            .order_by(func.lower(users_table.c.display_name))
+        ).mappings().all()
 
     draft = session.get(draft_key, "")
     return render_template(
@@ -910,6 +1131,8 @@ def group_add_members(group_id):
         except ValueError:
             continue
         if uid == me["id"]:
+            continue
+        if not are_friends(conn, me["id"], uid):
             continue
         if group_membership(conn, group_id, uid) is None:
             conn.execute(

@@ -1,13 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Чаты — Поговорим{% endblock %}
+{% block title %}Контакты — Поговорим{% endblock %}
 
 {% block content %}
+<h1>Добавить в друзья</h1>
+
+<form method="post" action="{{ url_for('friends_add') }}" class="card" autocomplete="off">
+  <label>Телефон или имя
+    <input name="who" required maxlength="60" placeholder="+7 900 123-45-67 или Аня" autofocus>
+    <span class="hint">Человек получит заявку и подтвердит её — тогда вы появитесь
+      друг у друга в контактах и сможете общаться.</span>
+  </label>
+  <button class="btn" type="submit">Отправить заявку</button>
+</form>
+
 {#
-  Список чатов и людей показывается в отдельной рамке (iframe).
-  Внутри рамки стоит <meta refresh>, поэтому обновляется только она —
-  вся страница при этом не мигает. Без JavaScript.
+  Список контактов, заявок и групп — в отдельной рамке (iframe).
+  Внутри неё стоит <meta refresh>, поэтому обновляется только она,
+  а вся страница не мигает. Без JavaScript.
 #}
 <iframe class="list-frame"
         src="{{ url_for('chats_frame') }}"
-        title="Чаты и люди"></iframe>
+        title="Контакты, заявки и группы"></iframe>
 {% endblock %}

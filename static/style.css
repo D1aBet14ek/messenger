@@ -270,6 +270,20 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .member-list li { display: flex; align-items: center; gap: 10px; }
 .inline-form { margin-left: auto; }
 
+/* Строка «заявка в друзья» */
+.people li.request {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+.people li.request .ptext { margin-right: auto; }
+.people li.request .inline-form { margin-left: 0; }
+
 @media (max-width: 520px) {
   .msg { max-width: 90%; }
   .who { display: none; }
