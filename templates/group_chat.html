@@ -209,5 +209,12 @@
     window.addEventListener("pointerup", stop);
     window.addEventListener("pointercancel", stop);
   })();
+
+  // Клавиша Esc — вернуться к списку чатов
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      window.location.href = "{{ url_for('users') }}";
+    }
+  });
 </script>
 {% endblock %}
