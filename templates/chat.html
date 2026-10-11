@@ -17,7 +17,7 @@
     <div class="chat-head">
       <a class="btn small ghost" href="{{ url_for('users') }}">← Все чаты</a>
       <h1>Чат с {{ other['display_name'] }}</h1>
-      <span class="plogin">@{{ other['username'] }}{% if is_online(other['last_seen']) %} · <span class="dot-online inline"></span>в сети{% endif %}</span>
+      <span class="plogin">@{{ other['username'] }}{% if show_online(other['last_seen'], other['hide_online']) %} · <span class="dot-online inline"></span>в сети{% endif %}</span>
     </div>
 
     <div id="messages" class="messages bg-{{ background }}"></div>
@@ -76,8 +76,9 @@
       box.scrollTop = box.scrollHeight;
     }).catch(function () {});
   }
+  var AUTO = {{ 'false' if current_user['auto_refresh'] == 0 else 'true' }};
   load();
-  setInterval(load, 3000);
+  if (AUTO) setInterval(load, 3000);
 
   // Кнопка 😊 открывает/закрывает панель смайликов
   var emojiToggle = document.getElementById("emojiToggle");

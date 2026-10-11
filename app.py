@@ -146,6 +146,8 @@ users_table = Table(
     Column("theme", String(10)),                                   # "light" или "dark"
     Column("app_bg", String(20)),                                  # фон приложения (окошкеек/меню)
     Column("last_seen", String(30)),                               # когда последний раз был в сети
+    Column("hide_online", Integer),                               # 1 — скрывать, что я в сети
+    Column("auto_refresh", Integer),                              # 1 — автообновление включено
     Column("avatar", LargeBinary),                                 # картинка-аватар
     Column("avatar_mime", String(50)),                             # вид картинки (png/jpeg)
 )
@@ -236,6 +238,8 @@ def ensure_columns():
             "theme": "VARCHAR(10)",
             "app_bg": "VARCHAR(20)",
             "last_seen": "VARCHAR(30)",
+            "hide_online": "INTEGER",
+            "auto_refresh": "INTEGER",
             "avatar": blob_type,
             "avatar_mime": "VARCHAR(50)",
         },
@@ -367,6 +371,14 @@ def is_online(last_seen):
 app.jinja_env.globals["is_online"] = is_online
 
 
+def show_online(last_seen, hide):
+    """Показывать ли «в сети» — с учётом настройки «скрывать, что я в сети»."""
+    return (not hide) and is_online(last_seen)
+
+
+app.jinja_env.globals["show_online"] = show_online
+
+
 def slow_mode_blocks(conn, group_id, user_id, seconds):
     """True, если с последнего сообщения человека в группе прошло меньше seconds."""
     if not seconds:
@@ -476,6 +488,8 @@ def user_cols():
         users_table.c.theme,
         users_table.c.app_bg,
         users_table.c.last_seen,
+        users_table.c.hide_online,
+        users_table.c.auto_refresh,
         users_table.c.avatar.is_not(None).label("has_avatar"),
     ]
 
@@ -842,6 +856,67 @@ def settings_appbg():
     return redirect(url_for("settings"))
 
 
+@app.route("/settings/password", methods=["POST"])
+def settings_password():
+    """Смена пароля (перенесено из профиля в настройки)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    password = request.form.get("password", "")
+    password2 = request.form.get("password2", "")
+    if len(password) < 6:
+        flash("Пароль: минимум 6 символов.")
+    elif password != password2:
+        flash("Пароли не совпадают.")
+    else:
+        conn = get_conn()
+        conn.execute(
+            update(users_table)
+            .where(users_table.c.id == me["id"])
+            .values(password_hash=generate_password_hash(password))
+        )
+        conn.commit()
+        flash("Пароль изменён. 🔐")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/privacy", methods=["POST"])
+def settings_privacy():
+    """Конфиденциальность: скрывать, что я в сети."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    conn.execute(
+        update(users_table)
+        .where(users_table.c.id == me["id"])
+        .values(hide_online=1 if request.form.get("hide_online") else 0)
+    )
+    conn.commit()
+    flash("Настройка конфиденциальности сохранена. 🔒")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/autorefresh", methods=["POST"])
+def settings_autorefresh():
+    """Экономия заряда: включать/выключать автообновление чатов."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    conn.execute(
+        update(users_table)
+        .where(users_table.c.id == me["id"])
+        .values(auto_refresh=1 if request.form.get("auto_refresh") else 0)
+    )
+    conn.commit()
+    flash("Настройка автообновления сохранена. 🔋")
+    return redirect(url_for("settings"))
+
+
 @app.route("/avatar/<int:user_id>")
 def avatar(user_id):
     """Отдаёт картинку-аватар человека (или пустой ответ, если картинки нет)."""
@@ -898,7 +973,7 @@ def load_contacts(conn, me_id):
         ).scalar() or 0
         # Сколько участников группы сейчас в сети
         online_rows = conn.execute(
-            select(users_table.c.last_seen)
+            select(users_table.c.last_seen, users_table.c.hide_online)
             .select_from(
                 group_members_table.join(
                     users_table, group_members_table.c.user_id == users_table.c.id
@@ -906,7 +981,9 @@ def load_contacts(conn, me_id):
             )
             .where(group_members_table.c.group_id == d["id"])
         ).mappings().all()
-        d["online"] = sum(1 for x in online_rows if is_online(x["last_seen"]))
+        d["online"] = sum(
+            1 for x in online_rows if is_online(x["last_seen"]) and not x["hide_online"]
+        )
         my_groups.append(d)
 
     # Мои друзья (только подтверждённые!, с числом непрочитанных)
@@ -1461,6 +1538,7 @@ def group_chat(group_id):
             users_table.c.username,
             users_table.c.bio,
             users_table.c.last_seen,
+            users_table.c.hide_online,
             users_table.c.avatar.is_not(None).label("has_avatar"),
         )
         .select_from(
@@ -1537,7 +1615,9 @@ def group_chat(group_id):
         can_write=(not is_muted) and (is_admin or (group["write_mode"] or "all") != "admins"),
         can_add=is_admin or (group["add_mode"] or "all") == "all",
         can_edit_info=is_admin or (group["info_mode"] or "admins") == "all",
-        online_count=sum(1 for m in members if is_online(m["last_seen"])),
+        online_count=sum(
+            1 for m in members if is_online(m["last_seen"]) and not m["hide_online"]
+        ),
         backgrounds=BACKGROUNDS,
         background=me["background"] or "default",
     )

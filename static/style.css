@@ -242,6 +242,22 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 }
 .me-card:hover { text-decoration: none; border-color: var(--brand); }
 
+/* Настройки: разделы и ссылка на профиль */
+.me-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+.me-link:hover { text-decoration: none; border-color: var(--brand); }
+.settings-section {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 22px 0 10px;
+}
+
 /* Пустая область справа, когда чат ещё не выбран */
 .empty-state {
   flex: 1 1 auto;

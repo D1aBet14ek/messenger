@@ -80,7 +80,7 @@
                 {% else %}
                   <span class="avatar">{{ u['display_name'][0]|upper }}</span>
                 {% endif %}
-                {% if is_online(u['last_seen']) %}<span class="dot-online" title="в сети"></span>{% endif %}
+                {% if show_online(u['last_seen'], u['hide_online']) %}<span class="dot-online" title="в сети"></span>{% endif %}
               </span>
               <span class="ptext">
                 <span class="pname">{{ u['display_name'] }}</span>
@@ -168,7 +168,9 @@
       }).catch(function () {});
     }
     updateCounts();
-    setInterval(updateCounts, 5000);
+    if ({{ 'false' if current_user['auto_refresh'] == 0 else 'true' }}) {
+      setInterval(updateCounts, 5000);
+    }
 
     // Поиск: вводишь текст — список людей и групп фильтруется
     (function () {

@@ -67,7 +67,7 @@
               {% else %}
                 <span class="avatar small">{{ m['display_name'][0]|upper }}</span>
               {% endif %}
-              {% if is_online(m['last_seen']) %}<span class="dot-online" title="в сети"></span>{% endif %}
+              {% if show_online(m['last_seen'], m['hide_online']) %}<span class="dot-online" title="в сети"></span>{% endif %}
             </span>
             <span class="ptext">
               <span class="pname">{{ m['display_name'] }}
@@ -235,8 +235,9 @@
       box.scrollTop = box.scrollHeight;
     }).catch(function () {});
   }
+  var AUTO = {{ 'false' if current_user['auto_refresh'] == 0 else 'true' }};
   load();
-  setInterval(load, 3000);
+  if (AUTO) setInterval(load, 3000);
 
   var emojiToggle = document.getElementById("emojiToggle");
   var emojiPanel = document.getElementById("emojiPanel");

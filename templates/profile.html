@@ -37,19 +37,9 @@
     </label>
   {% endif %}
 
-  <hr>
-
-  <p class="muted">Сменить пароль (оставь пустым, если менять не нужно):</p>
-  <label>Новый пароль
-    <input name="password" type="password" autocomplete="new-password">
-  </label>
-  <label>Повтори новый пароль
-    <input name="password2" type="password" autocomplete="new-password">
-  </label>
-
   <button class="btn" type="submit">Сохранить</button>
-  <p class="muted"><a href="{{ url_for('settings') }}">Настройки</a> ·
-    <a href="{{ url_for('users') }}">← Назад к чатам</a></p>
+  <p class="muted">Пароль меняется в <a href="{{ url_for('settings') }}">настройках</a>.</p>
+  <p class="muted"><a href="{{ url_for('users') }}">← Назад к чатам</a></p>
 </form>
 
 <script>
