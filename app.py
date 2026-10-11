@@ -175,6 +175,16 @@ reads_table = Table(
     Column("last_seen_id", Integer, nullable=False),
 )
 
+# Таблица «Закреплённые чаты» — какие чаты человек закрепил сверху.
+# kind = "user" (личный чат) или "group" (группа).
+pins_table = Table(
+    "pins",
+    metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("kind", String(10), primary_key=True),
+    Column("peer_id", Integer, primary_key=True),
+)
+
 # Таблица «Сообщения»
 messages_table = Table(
     "messages",
@@ -451,6 +461,16 @@ def get_reads(conn, user_id):
         select(reads_table).where(reads_table.c.user_id == user_id)
     ).mappings().all()
     return {(r["kind"], r["peer_id"]): r["last_seen_id"] for r in rows}
+
+
+def get_pins(conn, user_id):
+    """Закреплённые чаты: набор {(kind, peer_id)}."""
+    rows = conn.execute(
+        select(pins_table.c.kind, pins_table.c.peer_id).where(
+            pins_table.c.user_id == user_id
+        )
+    ).mappings().all()
+    return {(r["kind"], r["peer_id"]) for r in rows}
 
 
 def mark_read(conn, user_id, kind, peer_id, last_seen_id):
@@ -1081,6 +1101,7 @@ def avatar_too_large(error):
 def load_contacts(conn, me_id):
     """Данные страницы контактов: друзья, группы, входящие и исходящие заявки."""
     reads = get_reads(conn, me_id)
+    pins = get_pins(conn, me_id)
 
     # Мои группы (с числом непрочитанных)
     group_rows = conn.execute(
@@ -1126,6 +1147,7 @@ def load_contacts(conn, me_id):
         d["online"] = sum(
             1 for x in online_rows if is_online(x["last_seen"]) and not x["hide_online"]
         )
+        d["pinned"] = ("group", d["id"]) in pins
         my_groups.append(d)
 
     # Мои друзья (только подтверждённые!, с числом непрочитанных)
@@ -1151,6 +1173,7 @@ def load_contacts(conn, me_id):
                     )
                 )
             ).scalar() or 0
+            d["pinned"] = ("user", d["id"]) in pins
             friends.append(d)
 
     # Входящие заявки в друзья (мне)
@@ -1197,6 +1220,10 @@ def load_contacts(conn, me_id):
         )
         .order_by(func.lower(users_table.c.display_name))
     ).mappings().all()
+
+    # Закреплённые — наверх, затем по имени
+    my_groups.sort(key=lambda x: (not x["pinned"], (x["name"] or "").lower()))
+    friends.sort(key=lambda x: (not x["pinned"], (x["display_name"] or "").lower()))
 
     return friends, my_groups, incoming, outgoing
 
@@ -1864,6 +1891,54 @@ def group_remove_member(group_id, user_id):
     conn.commit()
     flash("Человек убран из группы.")
     return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/chat-pin/<kind>/<int:peer_id>", methods=["POST"])
+def chat_pin(kind, peer_id):
+    """Закрепить чат или группу сверху (правой кнопкой → Закрепить)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    if kind not in ("user", "group"):
+        return redirect(url_for("users"))
+    me = current_user()
+    conn = get_conn()
+    exists = conn.execute(
+        select(pins_table.c.user_id).where(
+            and_(
+                pins_table.c.user_id == me["id"],
+                pins_table.c.kind == kind,
+                pins_table.c.peer_id == peer_id,
+            )
+        )
+    ).first()
+    if exists is None:
+        conn.execute(
+            insert(pins_table).values(user_id=me["id"], kind=kind, peer_id=peer_id)
+        )
+        conn.commit()
+    return redirect(url_for("users"))
+
+
+@app.route("/chat-unpin/<kind>/<int:peer_id>", methods=["POST"])
+def chat_unpin(kind, peer_id):
+    """Открепить чат."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    conn.execute(
+        delete(pins_table).where(
+            and_(
+                pins_table.c.user_id == me["id"],
+                pins_table.c.kind == kind,
+                pins_table.c.peer_id == peer_id,
+            )
+        )
+    )
+    conn.commit()
+    return redirect(url_for("users"))
 
 
 @app.route("/friends/remove/<int:user_id>", methods=["POST"])

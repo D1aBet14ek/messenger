@@ -301,11 +301,13 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   border-radius: 8px;
   padding: 9px 12px;
   font: inherit;
-  color: #c93b3f;
+  color: var(--ink);
   cursor: pointer;
   font-family: inherit;
 }
-.ctx-item:hover { background: #fdeced; }
+.ctx-item:hover { background: #f0f4ff; }
+.ctx-item.danger { color: #c93b3f; }
+.ctx-item.danger:hover { background: #fdeced; }
 
 /* Пустая область справа, когда чат ещё не выбран */
 .empty-state {

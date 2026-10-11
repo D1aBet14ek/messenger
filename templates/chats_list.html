@@ -72,7 +72,7 @@
     {% if friends %}
       <ul class="people">
         {% for u in friends %}
-          <li data-type="user" data-id="{{ u['id'] }}">
+          <li data-type="user" data-id="{{ u['id'] }}"{% if u['pinned'] %} data-pinned="1"{% endif %}>
             <a class="person" href="{{ url_for('chat', other_id=u['id']) }}" target="_top">
               <span class="avatar-wrap">
                 {% if u['has_avatar'] %}
@@ -83,7 +83,7 @@
                 {% if show_online(u['last_seen'], u['hide_online']) %}<span class="dot-online" title="в сети"></span>{% endif %}
               </span>
               <span class="ptext">
-                <span class="pname">{{ u['display_name'] }}</span>
+                <span class="pname">{% if u['pinned'] %}📌 {% endif %}{{ u['display_name'] }}</span>
                 <span class="plogin">@{{ u['username'] }}{% if u['bio'] %} · {{ u['bio'] }}{% endif %}</span>
               </span>
               <span class="parrow">
@@ -119,7 +119,7 @@
     {% if groups %}
       <ul class="people">
         {% for g in groups %}
-          <li data-type="group" data-id="{{ g['id'] }}"{% if g['created_by'] == me['id'] %} data-owner="1"{% endif %}>
+          <li data-type="group" data-id="{{ g['id'] }}"{% if g['created_by'] == me['id'] %} data-owner="1"{% endif %}{% if g['pinned'] %} data-pinned="1"{% endif %}>
             <a class="person" href="{{ url_for('group_chat', group_id=g['id']) }}" target="_top">
               {% if g['has_photo'] %}
                 <img class="avatar img" src="{{ url_for('group_photo', group_id=g['id']) }}" alt="">
@@ -127,7 +127,7 @@
                 <span class="avatar group">👥</span>
               {% endif %}
               <span class="ptext">
-                <span class="pname">{{ g['name'] }}</span>
+                <span class="pname">{% if g['pinned'] %}📌 {% endif %}{{ g['name'] }}</span>
                 <span class="plogin">группа{% if g['online'] %} · {{ g['online'] }} в сети{% endif %}</span>
               </span>
               <span class="parrow">
@@ -207,10 +207,10 @@
           .then(function () { window.location.reload(); })
           .catch(function () { window.location.reload(); });
       }
-      function addItem(label, fn) {
+      function addItem(label, fn, danger) {
         var b = document.createElement("button");
         b.type = "button";
-        b.className = "ctx-item";
+        b.className = "ctx-item" + (danger ? " danger" : "");
         b.textContent = label;
         b.addEventListener("click", function () { hide(); fn(); });
         menu.appendChild(b);
@@ -229,19 +229,24 @@
         var id = el.getAttribute("data-id");
         menu.innerHTML = "";
 
+        var pinned = el.getAttribute("data-pinned");
+        addItem(pinned ? "Открепить" : "Закрепить", function () {
+          act("/chat-" + (pinned ? "unpin" : "pin") + "/" + type + "/" + id);
+        });
+
         if (type === "user") {
           addItem("Удалить из контактов", function () {
             if (window.confirm("Удалить из контактов?")) { act("/friends/remove/" + id); }
-          });
+          }, true);
         } else if (type === "group") {
           if (el.getAttribute("data-owner")) {
             addItem("Удалить группу", function () {
               if (window.confirm("Удалить группу целиком?")) { act("/groups/" + id + "/delete"); }
-            });
+            }, true);
           } else {
             addItem("Выйти из группы", function () {
               if (window.confirm("Выйти из группы?")) { act("/groups/" + id + "/leave"); }
-            });
+            }, true);
           }
         }
 
