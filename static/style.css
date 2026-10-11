@@ -308,17 +308,29 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
 .composer { order: 2; display: flex; gap: 10px; }
 .composer input { flex: 1; }
 
-.emoji-bar { order: 1; display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.emoji-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: var(--shadow);
+}
+.emoji-bar[hidden] { display: none; }
 .emoji-btn {
-  font-size: 22px;
+  font-size: 28px;
   line-height: 1;
   padding: 6px 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--card);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
   cursor: pointer;
 }
-.emoji-btn:hover { background: #f4f7ff; border-color: var(--brand); }
+.emoji-btn:hover { background: #f0f4ff; border-color: var(--brand); }
+.emoji-toggle { font-size: 20px; padding: 11px 14px; }
 
 /* Выбор фона чата */
 .bg-bar { order: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }

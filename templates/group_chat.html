@@ -25,19 +25,12 @@
       <form method="post" class="composer-box" autocomplete="off">
         <div class="composer">
           <input name="body" id="body" placeholder="Напиши сообщение группе..." maxlength="2000" value="{{ draft }}" autofocus>
+          <button class="btn small ghost emoji-toggle" type="button" id="emojiToggle" title="Смайлики">😊</button>
           <button class="btn" type="submit" name="send" value="1">Отправить</button>
         </div>
-        <div class="bg-bar">
-          <span class="bg-label">Фон:</span>
-          {% for b in backgrounds %}
-            <button class="bg-swatch bg-{{ b }}" type="submit" name="set_bg" value="{{ b }}"
-                    title="Сменить фон чата"></button>
-          {% endfor %}
-        </div>
-        <div class="emoji-bar">
+        <div class="emoji-bar" id="emojiPanel" hidden>
           {% for e in emoji %}
-            <button class="emoji-btn" type="submit" name="add_emoji" value="{{ e }}"
-                    title="Добавить смайлик">{{ e }}</button>
+            <button class="emoji-btn" type="button" value="{{ e }}">{{ e }}</button>
           {% endfor %}
         </div>
       </form>
@@ -176,6 +169,21 @@
   load();
   setInterval(load, 3000);
 
+  var emojiToggle = document.getElementById("emojiToggle");
+  var emojiPanel = document.getElementById("emojiPanel");
+  if (emojiToggle && emojiPanel) {
+    emojiToggle.addEventListener("click", function () {
+      emojiPanel.hidden = !emojiPanel.hidden;
+    });
+    emojiPanel.addEventListener("click", function (e) {
+      if (e.target.classList.contains("emoji-btn")) {
+        var input = document.getElementById("body");
+        input.value += e.target.value;
+        input.focus();
+      }
+    });
+  }
+
   (function () {
     var grip = document.getElementById("grip");
     var side = document.getElementById("side");
@@ -210,8 +218,6 @@
     window.addEventListener("pointercancel", stop);
   })();
 
-  // Клавиша Esc — вернуться к списку чатов.
-  // Но если в поле есть недопечатанный текст — не уходим (чтобы его не потерять).
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
       var input = document.getElementById("body");
