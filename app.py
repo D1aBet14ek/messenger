@@ -17,7 +17,7 @@
 
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import (
     Flask,
@@ -114,6 +114,8 @@ app = Flask(__name__)
 app.secret_key = load_secret_key()
 # Аватар не должен быть больше 2 МБ
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+# Вход «запоминается» надолго: закрыл и открыл — ты по-прежнему в аккаунте.
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=365)
 
 # ---------------------------------------------------------------------------
 # 2. БАЗА ДАННЫХ
@@ -512,6 +514,7 @@ def login():
             flash("Неверный логин или пароль.")
         else:
             session.clear()
+            session.permanent = True  # вход запоминается надолго
             session["user_id"] = user["id"]
             flash("С возвращением, {}!".format(user["display_name"]))
             return redirect(url_for("users"))

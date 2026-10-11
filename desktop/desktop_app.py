@@ -108,7 +108,12 @@ def main():
     webview.create_window(
         "Поговорим", url, width=1000, height=760, min_size=(420, 560)
     )
-    webview.start()
+    # private_mode=False + storage_path — чтобы вход сохранялся между запусками
+    # (иначе при каждом открытии программа «забывала» бы cookie и выкидывала из аккаунта).
+    webview.start(
+        private_mode=False,
+        storage_path=os.path.join(base_dir(), "appdata"),
+    )
 
 
 if __name__ == "__main__":
