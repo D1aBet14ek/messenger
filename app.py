@@ -54,6 +54,14 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Папка для данных (файла базы). На своём компьютере — рядом с программой.
 # На хостинге можно указать другую папку настройкой DATA_DIR.
 DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
+# Если папки для данных ещё нет — создаём её.
+# Без этого база не сможет появиться, и сайт при запуске упадёт (ошибка 502).
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+except OSError:
+    # не получилось (например, папка недоступна) — работаем рядом с программой
+    DATA_DIR = BASE_DIR
+
 DB_PATH = os.path.join(DATA_DIR, "chat.db")
 SECRET_PATH = os.path.join(DATA_DIR, "secret_key.txt")
 
