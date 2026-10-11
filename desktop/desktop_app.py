@@ -20,7 +20,7 @@ import webview
 # === Адрес твоего мессенджера ===
 # Впиши сюда, например: "https://мой-домен.ru" (без слэша в конце).
 # Если здесь пусто — программа спросит адрес один раз и запомнит.
-DEFAULT_ADDRESS = ""
+DEFAULT_ADDRESS = "https://messenger.d1abet14ek.corray.ru"
 
 
 def base_dir():
