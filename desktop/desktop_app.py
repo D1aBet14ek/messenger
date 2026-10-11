@@ -3,16 +3,24 @@
 Программа-окно для компьютера.
 Открывает мессенджер «Поговорим» в отдельном окне (как обычное приложение).
 
-Адрес сервера спрашивается один раз и запоминается в файле server.txt
-рядом с программой — чтобы не вводить каждый раз.
+Адрес сервера можно:
+  * задать ниже в DEFAULT_ADDRESS (тогда программа не спросит его);
+  * или ввести один раз — программа запомнит его в файле server.txt.
+При первом запуске программа также создаёт ярлык на рабочем столе.
 """
 
 import os
+import subprocess
 import sys
 import tkinter as tk
 from tkinter import simpledialog
 
 import webview
+
+# === Адрес твоего мессенджера ===
+# Впиши сюда, например: "https://мой-домен.ru" (без слэша в конце).
+# Если здесь пусто — программа спросит адрес один раз и запомнит.
+DEFAULT_ADDRESS = ""
 
 
 def base_dir():
@@ -23,6 +31,37 @@ def base_dir():
 
 
 CONFIG = os.path.join(base_dir(), "server.txt")
+
+
+def desktop_lnk_path():
+    return os.path.join(os.path.expanduser("~"), "Desktop", "Поговорим.lnk")
+
+
+def create_desktop_shortcut():
+    """Создаём ярлык на рабочем столе (один раз)."""
+    if not getattr(sys, "frozen", False):
+        return  # запущено как .py — ярлык не нужен
+    lnk = desktop_lnk_path()
+    if os.path.exists(lnk):
+        return
+    exe = sys.executable.replace("'", "''")
+    workdir = os.path.dirname(sys.executable).replace("'", "''")
+    ps = (
+        "$d=[Environment]::GetFolderPath('Desktop');"
+        "$ws=New-Object -ComObject WScript.Shell;"
+        "$sc=$ws.CreateShortcut($d+'\\Поговорим.lnk');"
+        "$sc.TargetPath='" + exe + "';"
+        "$sc.IconLocation='" + exe + "';"
+        "$sc.WorkingDirectory='" + workdir + "';"
+        "$sc.Save()"
+    )
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps],
+            creationflags=0x08000000,  # CREATE_NO_WINDOW — без мелькания окна
+        )
+    except Exception:
+        pass
 
 
 def ask_address():
@@ -40,7 +79,9 @@ def ask_address():
 
 
 def load_address():
-    """Читаем сохранённый адрес. Если его нет — спрашиваем и сохраняем."""
+    """Адрес: сначала зашитый, потом сохранённый, потом спросить."""
+    if DEFAULT_ADDRESS:
+        return DEFAULT_ADDRESS
     if os.path.exists(CONFIG):
         try:
             with open(CONFIG, "r", encoding="utf-8") as f:
@@ -60,6 +101,7 @@ def load_address():
 
 
 def main():
+    create_desktop_shortcut()
     url = load_address()
     if not url:
         return
