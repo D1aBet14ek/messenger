@@ -27,8 +27,6 @@
         <a class="btn small" href="{{ url_for('users') }}">Список людей</a>
         <a class="btn small ghost" href="{{ url_for('profile') }}">Настройки</a>
         <a class="btn small ghost" href="{{ url_for('logout') }}">Выйти</a>
-        {# Эта кнопка появляется только внутри программы для ПК (закрывает её) #}
-        <button class="btn small ghost danger" type="button" id="exitApp" hidden>✕ Закрыть программу</button>
       </nav>
     {% endif %}
   </header>
@@ -51,40 +49,18 @@
         navigator.serviceWorker.register('/sw.js');
       });
     }
+  </script>
+
   <script>
-    // F11 — включить/выключить полноэкранный режим (работает внутри программы для ПК)
+    // F11 — выйти из программы (работает внутри программы для ПК).
+    // В обычном браузере F11 не трогаем (там он включает полноэкранный режим).
     document.addEventListener("keydown", function (e) {
-      if (e.key === "F11") {
+      if (e.key === "F11"
+          && window.pywebview && window.pywebview.api && window.pywebview.api.close_app) {
         e.preventDefault();
-        if (window.pywebview && window.pywebview.api && window.pywebview.api.toggle_fullscreen) {
-          window.pywebview.api.toggle_fullscreen();
-        }
+        window.pywebview.api.close_app();
       }
     });
-
-    // Кнопка «Закрыть программу» — показываем только внутри программы для ПК.
-    // Библиотека «подключается» с задержкой, поэтому проверяем несколько раз.
-    var exitBtn = document.getElementById("exitApp");
-    function hasPcApi() {
-      return !!(window.pywebview && window.pywebview.api && window.pywebview.api.close_app);
-    }
-    function showExit() { if (exitBtn) exitBtn.hidden = false; }
-    if (hasPcApi()) showExit();
-    window.addEventListener("pywebviewready", showExit);
-    var _tries = 0;
-    var _timer = setInterval(function () {
-      if (hasPcApi()) { showExit(); clearInterval(_timer); }
-      if (++_tries > 40) clearInterval(_timer);   // хватит примерно на 10 секунд
-    }, 250);
-    if (exitBtn) {
-      exitBtn.addEventListener("click", function () {
-        if (hasPcApi()) {
-          window.pywebview.api.close_app();
-          return;
-        }
-        try { window.close(); } catch (e) {}
-      });
-    }
   </script>
 </body>
 </html>

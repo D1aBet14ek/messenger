@@ -21,7 +21,7 @@ from tkinter import messagebox, simpledialog
 import webview
 
 # === Версия программы (меняй вместе с desktop/version.txt на сервере) ===
-VERSION = "1.5"
+VERSION = "1.6"
 
 # === Адрес твоего мессенджера ===
 # Если здесь пусто — программа спросит адрес один раз и запомнит.
@@ -241,7 +241,9 @@ def main():
     storage = os.path.join(
         os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "Pogovorim"
     )
-    webview.start(private_mode=False, storage_path=storage)
+    # http_server=True — включает служебный сервер, через который работает «мостик»
+    # между страницей и программой (без него кнопки/F11 не срабатывают).
+    webview.start(private_mode=False, storage_path=storage, http_server=True)
 
 
 if __name__ == "__main__":
