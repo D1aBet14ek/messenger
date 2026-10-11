@@ -6,33 +6,17 @@
   <a class="btn small ghost" href="{{ url_for('users') }}">← Все люди</a>
   <h1>Чат с {{ other['display_name'] }}</h1>
   <span class="plogin">@{{ other['username'] }}</span>
-  {# Запасная кнопка на случай, если рамки (iframe) отключены #}
-  <a class="btn small" href="{{ url_for('chat', other_id=other['id']) }}">🔄 Обновить</a>
 </div>
 
-{#
-  Рамка (iframe) показывает отдельную страничку с сообщениями.
-  Внутри неё стоит <meta refresh>, поэтому сообщения обновляются сами — без JavaScript.
-#}
-<iframe class="messages-frame"
-        src="{{ url_for('messages', other_id=other['id']) }}"
-        title="Сообщения"></iframe>
+{# Сообщения показываются здесь и обновляются на месте — без перезагрузки и мерцания #}
+<div id="messages" class="messages bg-{{ background }}"></div>
 
-{#
-  Одна форма делает две вещи — и всё без JavaScript:
-    * кнопка «Отправить» отправляет набранный текст;
-    * кнопка-смайлик добавляет смайлик в поле (страница перезагружается
-      и поле снова показывает уже набранное + смайлик).
-  «Отправить» стоит в разметке ПЕРВОЙ, поэтому Enter отправляет сообщение,
-  а не вставляет смайлик.
-#}
 <form method="post" class="composer-box" autocomplete="off">
   <div class="composer">
     <input name="body" id="body" placeholder="Напиши сообщение..." maxlength="2000" value="{{ draft }}" autofocus>
     <button class="btn" type="submit" name="send" value="1">Отправить</button>
   </div>
 
-  {# Выбор фона: нажал квадратик — фон чата сменился #}
   <div class="bg-bar">
     <span class="bg-label">Фон:</span>
     {% for b in backgrounds %}
@@ -49,8 +33,40 @@
   </div>
 </form>
 
-<p class="muted center small-hint">
-  Нажми смайлик — он добавится в поле, потом допиши текст и нажми «Отправить».
-  Новые сообщения появляются сами примерно каждые 3 секунды.
-</p>
+<p class="muted center small-hint">Сообщения появляются сами — около каждые 3 секунды.</p>
+
+<script>
+  var box = document.getElementById("messages");
+  function esc(text) {
+    var d = document.createElement("div");
+    d.textContent = text == null ? "" : text;
+    return d.innerHTML;
+  }
+  function render(list) {
+    if (!list.length) {
+      box.innerHTML = '<p class="empty">Пока сообщений нет. Напиши первым! 👋</p>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      html += '<div class="msg ' + (m.mine ? "mine" : "theirs") + '">';
+      if (m.sender && !m.mine) html += '<div class="sender">' + esc(m.sender) + '</div>';
+      html += '<div class="bubble">' + esc(m.body) + '</div>';
+      html += '<div class="time">' + esc(m.time) + '</div></div>';
+    }
+    box.innerHTML = html;
+  }
+  function load() {
+    fetch("/api/chat/{{ other['id'] }}").then(function (r) {
+      if (!r.ok) return null;
+      return r.json();
+    }).then(function (data) {
+      if (data) render(data.messages);
+      box.scrollTop = box.scrollHeight;
+    }).catch(function () {});
+  }
+  load();
+  setInterval(load, 3000);
+</script>
 {% endblock %}

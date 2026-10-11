@@ -6,22 +6,17 @@
   <a class="btn small ghost" href="{{ url_for('users') }}">← Все чаты</a>
   <h1>👥 {{ group['name'] }}</h1>
   {% if is_admin %}<span class="badge">ты админ</span>{% endif %}
-  <a class="btn small" href="{{ url_for('group_chat', group_id=group['id']) }}">🔄 Обновить</a>
 </div>
 
-{# Рамка с сообщениями группы — обновляется сама (без JavaScript) #}
-<iframe class="messages-frame"
-        src="{{ url_for('group_messages', group_id=group['id']) }}"
-        title="Сообщения группы"></iframe>
+{# Сообщения группы — обновляются на месте, без мерцания #}
+<div id="messages" class="messages bg-{{ background }}"></div>
 
-{# Отправка текста и смайликов — как в личном чате #}
 <form method="post" class="composer-box" autocomplete="off">
   <div class="composer">
     <input name="body" id="body" placeholder="Напиши сообщение группе..." maxlength="2000" value="{{ draft }}" autofocus>
     <button class="btn" type="submit" name="send" value="1">Отправить</button>
   </div>
 
-  {# Выбор фона: нажал квадратик — фон чата сменился #}
   <div class="bg-bar">
     <span class="bg-label">Фон:</span>
     {% for b in backgrounds %}
@@ -87,4 +82,39 @@
     <p class="muted">Добавлять и убирать людей может только админ группы.</p>
   {% endif %}
 </div>
+
+<script>
+  var box = document.getElementById("messages");
+  function esc(text) {
+    var d = document.createElement("div");
+    d.textContent = text == null ? "" : text;
+    return d.innerHTML;
+  }
+  function render(list) {
+    if (!list.length) {
+      box.innerHTML = '<p class="empty">Пока сообщений нет. Напиши первым! 👋</p>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      html += '<div class="msg ' + (m.mine ? "mine" : "theirs") + '">';
+      if (m.sender && !m.mine) html += '<div class="sender">' + esc(m.sender) + '</div>';
+      html += '<div class="bubble">' + esc(m.body) + '</div>';
+      html += '<div class="time">' + esc(m.time) + '</div></div>';
+    }
+    box.innerHTML = html;
+  }
+  function load() {
+    fetch("/api/group-chat/{{ group['id'] }}").then(function (r) {
+      if (!r.ok) return null;
+      return r.json();
+    }).then(function (data) {
+      if (data) render(data.messages);
+      box.scrollTop = box.scrollHeight;
+    }).catch(function () {});
+  }
+  load();
+  setInterval(load, 3000);
+</script>
 {% endblock %}

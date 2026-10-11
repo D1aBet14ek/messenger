@@ -4,10 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  {# Список обновляется сам каждые 5 секунд — только эта рамка, страница не мигает. #}
-  <meta http-equiv="refresh" content="5">
+  {# Список НЕ перезагружается целиком — счётчики обновляются на месте (без мерцания). #}
 
-  {# Фон сразу — чтобы при перезагрузке не мелькал белый цвет #}
+  {# Фон сразу — чтобы не мелькал белый цвет #}
   <style>html, body { margin: 0; background: #eef1f6; }</style>
 
   <title>Контакты</title>
@@ -60,7 +59,7 @@
                 <span class="plogin">@{{ u['username'] }}{% if u['bio'] %} · {{ u['bio'] }}{% endif %}</span>
               </span>
               <span class="parrow">
-                {% if u['unread'] %}<span class="count">{{ u['unread'] }}</span>{% endif %} →
+                <span class="count" data-kind="user" data-id="{{ u['id'] }}"{% if not u['unread'] %} hidden{% endif %}>{{ u['unread'] or '' }}</span> →
               </span>
             </a>
           </li>
@@ -100,7 +99,7 @@
                 <span class="plogin">группа</span>
               </span>
               <span class="parrow">
-                {% if g['unread'] %}<span class="count">{{ g['unread'] }}</span>{% endif %} →
+                <span class="count" data-kind="group" data-id="{{ g['id'] }}"{% if not g['unread'] %} hidden{% endif %}>{{ g['unread'] or '' }}</span> →
               </span>
             </a>
           </li>
@@ -113,8 +112,31 @@
     {% endif %}
 
     <p class="muted center small-hint">
-      Обновляется само каждые 5 секунд. 🙂
+      Счётчики сообщений обновляются сами. 🙂
     </p>
   </div>
+
+  <script>
+    // Обновляем только кружочки с числами — без перезагрузки списка и без мерцания.
+    function updateCounts() {
+      fetch("/api/unread").then(function (r) {
+        if (!r.ok) return null;
+        return r.json();
+      }).then(function (data) {
+        if (!data) return;
+        var spans = document.querySelectorAll(".count");
+        for (var i = 0; i < spans.length; i++) {
+          var el = spans[i];
+          var kind = el.getAttribute("data-kind");
+          var id = el.getAttribute("data-id");
+          var n = (data[kind] && data[kind][id]) || 0;
+          if (n > 0) { el.textContent = n; el.hidden = false; }
+          else { el.hidden = true; }
+        }
+      }).catch(function () {});
+    }
+    updateCounts();
+    setInterval(updateCounts, 5000);
+  </script>
 </body>
 </html>

@@ -1371,6 +1371,100 @@ def group_remove_member(group_id, user_id):
     return redirect(url_for("group_chat", group_id=group_id))
 
 
+@app.route("/api/chat/<int:other_id>")
+def api_chat(other_id):
+    """Сообщения личного чата как данные — для обновления без мерцания."""
+    me = current_user()
+    if me is None:
+        return jsonify({"error": "not logged in"}), 401
+    conn = get_conn()
+    other = conn.execute(
+        select(*user_cols()).where(users_table.c.id == other_id)
+    ).mappings().first()
+    if other is None or not are_friends(conn, me["id"], other["id"]):
+        return jsonify({"error": "no access"}), 403
+
+    max_id = conn.execute(
+        select(func.max(messages_table.c.id)).where(
+            or_(
+                and_(messages_table.c.sender_id == me["id"],
+                     messages_table.c.recipient_id == other_id),
+                and_(messages_table.c.sender_id == other_id,
+                     messages_table.c.recipient_id == me["id"]),
+            )
+        )
+    ).scalar() or 0
+    mark_read(conn, me["id"], "user", other_id, max_id)
+
+    return jsonify({"messages": conversation(conn, me["id"], other_id)})
+
+
+@app.route("/api/group-chat/<int:group_id>")
+def api_group_chat(group_id):
+    """Сообщения группы как данные."""
+    me = current_user()
+    if me is None:
+        return jsonify({"error": "not logged in"}), 401
+    conn = get_conn()
+    if group_membership(conn, group_id, me["id"]) is None:
+        return jsonify({"error": "no access"}), 403
+
+    max_id = conn.execute(
+        select(func.max(group_messages_table.c.id)).where(
+            group_messages_table.c.group_id == group_id
+        )
+    ).scalar() or 0
+    mark_read(conn, me["id"], "group", group_id, max_id)
+
+    return jsonify({"messages": group_conversation(conn, group_id, me["id"])})
+
+
+@app.route("/api/unread")
+def api_unread():
+    """Числа непрочитанных — для кружочков в списке чатов."""
+    me = current_user()
+    if me is None:
+        return jsonify({"user": {}, "group": {}})
+    conn = get_conn()
+    reads = get_reads(conn, me["id"])
+
+    users_unread = {}
+    for f in friend_ids(conn, me["id"]):
+        last = reads.get(("user", f), 0)
+        users_unread[str(f)] = conn.execute(
+            select(func.count())
+            .select_from(messages_table)
+            .where(and_(
+                messages_table.c.sender_id == f,
+                messages_table.c.recipient_id == me["id"],
+                messages_table.c.id > last,
+            ))
+        ).scalar() or 0
+
+    groups_unread = {}
+    gids = [
+        r["group_id"]
+        for r in conn.execute(
+            select(group_members_table.c.group_id).where(
+                group_members_table.c.user_id == me["id"]
+            )
+        ).mappings().all()
+    ]
+    for g in gids:
+        last = reads.get(("group", g), 0)
+        groups_unread[str(g)] = conn.execute(
+            select(func.count())
+            .select_from(group_messages_table)
+            .where(and_(
+                group_messages_table.c.group_id == g,
+                group_messages_table.c.sender_id != me["id"],
+                group_messages_table.c.id > last,
+            ))
+        ).scalar() or 0
+
+    return jsonify({"user": users_unread, "group": groups_unread})
+
+
 # ---------------------------------------------------------------------------
 # 5. ЗАПУСК
 # ---------------------------------------------------------------------------

@@ -2,7 +2,10 @@
 {% block title %}Контакты — Поговорим{% endblock %}
 
 {% block content %}
-<h1>Добавить в друзья</h1>
+<div class="chat-head">
+  <h1>Контакты</h1>
+  <a class="btn small" href="{{ url_for('users') }}">🔄 Обновить</a>
+</div>
 
 <form method="post" action="{{ url_for('friends_add') }}" class="card" autocomplete="off">
   <label>Логин человека (@имя)
