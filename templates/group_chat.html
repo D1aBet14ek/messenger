@@ -210,9 +210,15 @@
     window.addEventListener("pointercancel", stop);
   })();
 
-  // Клавиша Esc — вернуться к списку чатов
+  // Клавиша Esc — вернуться к списку чатов.
+  // Но если в поле есть недопечатанный текст — не уходим (чтобы его не потерять).
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
+      var input = document.getElementById("body");
+      if (input && input.value.trim() !== "") {
+        input.focus();
+        return;
+      }
       window.location.href = "{{ url_for('users') }}";
     }
   });
