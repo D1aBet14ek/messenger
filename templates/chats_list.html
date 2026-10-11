@@ -15,6 +15,11 @@
 <body class="frame-body list-body theme-{{ theme }}{% if app_bg %} bg-{{ app_bg }}{% endif %}">
   <div class="list-wrap">
 
+    {# Поиск по людям и группам #}
+    <div class="search-box">
+      <input id="searchBox" type="text" placeholder="Поиск людей и чатов" autocomplete="off">
+    </div>
+
     {% if incoming %}
       <h1>Заявки в друзья ({{ incoming|length }})</h1>
       <ul class="people">
@@ -144,6 +149,26 @@
     }
     updateCounts();
     setInterval(updateCounts, 5000);
+
+    // Поиск: вводишь текст — список людей и групп фильтруется
+    (function () {
+      var box = document.getElementById("searchBox");
+      if (!box) return;
+      function apply() {
+        var q = box.value.trim().toLowerCase();
+        var items = document.querySelectorAll(".people li");
+        for (var i = 0; i < items.length; i++) {
+          var el = items[i];
+          if (!el.getAttribute("data-name")) {
+            el.setAttribute("data-name", el.textContent.toLowerCase());
+          }
+          var name = el.getAttribute("data-name");
+          el.hidden = q !== "" && name.indexOf(q) === -1;
+        }
+      }
+      box.addEventListener("input", apply);
+      apply();
+    })();
   </script>
 </body>
 </html>

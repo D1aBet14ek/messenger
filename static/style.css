@@ -219,6 +219,10 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .list-body { background: var(--bg); }
 .list-wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
 
+/* Поиск в списке чатов */
+.search-box { margin-bottom: 14px; }
+.search-box input { width: 100%; }
+
 /* Внутренняя страничка с сообщениями (живёт внутри рамки).
    Фон такой же, как у рамки, поэтому при самообновлении НЕТ белого мигания. */
 .frame-html, .frame-body { margin: 0; background: var(--card); }
