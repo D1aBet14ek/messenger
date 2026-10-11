@@ -142,6 +142,8 @@ users_table = Table(
     Column("created_at", String(30), nullable=False),
     Column("bio", Text),                                           # описание (о себе)
     Column("background", String(20)),                              # выбранный фон чата
+    Column("theme", String(10)),                                   # "light" или "dark"
+    Column("app_bg", String(20)),                                  # фон приложения (окошкеек/меню)
     Column("avatar", LargeBinary),                                 # картинка-аватар
     Column("avatar_mime", String(50)),                             # вид картинки (png/jpeg)
 )
@@ -222,6 +224,8 @@ def ensure_columns():
             "phone": "VARCHAR(20)",
             "bio": "TEXT",
             "background": "VARCHAR(20)",
+            "theme": "VARCHAR(10)",
+            "app_bg": "VARCHAR(20)",
             "avatar": blob_type,
             "avatar_mime": "VARCHAR(50)",
         },
@@ -413,6 +417,8 @@ def user_cols():
         users_table.c.display_name,
         users_table.c.bio,
         users_table.c.background,
+        users_table.c.theme,
+        users_table.c.app_bg,
         users_table.c.avatar.is_not(None).label("has_avatar"),
     ]
 
@@ -699,6 +705,44 @@ def settings_background():
     return redirect(url_for("profile"))
 
 
+@app.route("/settings/theme", methods=["POST"])
+def settings_theme():
+    """Сменить тему: светлая или тёмная."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    theme = request.form.get("theme")
+    if theme in ("light", "dark"):
+        conn = get_conn()
+        conn.execute(
+            update(users_table).where(users_table.c.id == me["id"]).values(theme=theme)
+        )
+        conn.commit()
+        flash("Тема изменена.")
+    return redirect(url_for("profile"))
+
+
+@app.route("/settings/appbg", methods=["POST"])
+def settings_appbg():
+    """Сменить фон приложения (окошеек/меню), отдельно от фона чатов."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    value = request.form.get("app_bg", "")
+    if value == "" or value in BACKGROUNDS:
+        conn = get_conn()
+        conn.execute(
+            update(users_table)
+            .where(users_table.c.id == me["id"])
+            .values(app_bg=(value or None))
+        )
+        conn.commit()
+        flash("Фон приложения сохранён.")
+    return redirect(url_for("profile"))
+
+
 @app.route("/avatar/<int:user_id>")
 def avatar(user_id):
     """Отдаёт картинку-аватар человека (или пустой ответ, если картинки нет)."""
@@ -847,7 +891,12 @@ def chats_frame():
     friends, my_groups, incoming, outgoing = load_contacts(get_conn(), me["id"])
     return render_template(
         "chats_list.html",
-        friends=friends, groups=my_groups, incoming=incoming, outgoing=outgoing,
+        friends=friends,
+        groups=my_groups,
+        incoming=incoming,
+        outgoing=outgoing,
+        theme=(me["theme"] or "light"),
+        app_bg=(me["app_bg"] or ""),
     )
 
 

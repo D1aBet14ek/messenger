@@ -16,7 +16,9 @@
 
   {% block head %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+{% set th = (current_user['theme'] if current_user else 'light') or 'light' %}
+{% set ab = (current_user['app_bg'] if current_user else '') or '' %}
+<body class="{% block body_class %}{% endblock %} theme-{{ th }}{% if ab %} bg-{{ ab }}{% endif %}">
   <header class="topbar">
     <a class="brand" href="{{ url_for('index') }}">💬 Поговорим</a>
     {% if current_user %}

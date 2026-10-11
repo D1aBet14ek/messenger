@@ -60,4 +60,26 @@
     {% endfor %}
   </div>
 </form>
+
+<form method="post" action="{{ url_for('settings_theme') }}" class="card">
+  <p class="muted">Тема оформления:</p>
+  <div class="theme-row">
+    <button class="btn{% if (user['theme'] or 'light') == 'dark' %} ghost{% endif %}"
+            type="submit" name="theme" value="light">☀️ Светлая</button>
+    <button class="btn{% if (user['theme'] or 'light') != 'dark' %} ghost{% endif %}"
+            type="submit" name="theme" value="dark">🌙 Тёмная</button>
+  </div>
+</form>
+
+<form method="post" action="{{ url_for('settings_appbg') }}" class="card">
+  <p class="muted">Фон приложения (окошек и меню — не чатов):</p>
+  <div class="bg-bar">
+    <button class="bg-swatch standard" type="submit" name="app_bg" value=""
+            title="Стандартный">—</button>
+    {% for b in backgrounds %}
+      <button class="bg-swatch bg-{{ b }}" type="submit" name="app_bg" value="{{ b }}"
+              title="Выбрать фон"></button>
+    {% endfor %}
+  </div>
+</form>
 {% endblock %}

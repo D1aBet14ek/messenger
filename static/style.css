@@ -344,6 +344,8 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
   cursor: pointer;
 }
 .bg-swatch:hover { border-color: var(--brand); }
+.bg-swatch.standard { background: var(--bg); color: var(--muted); font-size: 14px; line-height: 1; }
+.theme-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* Варианты фона чата (классы bg-<имя>). Все светлые — чтобы текст читался. */
 .bg-default { background: linear-gradient(180deg, #f9fbff, #eef3fc); }
@@ -471,3 +473,49 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
   .msg { max-width: 90%; }
   .who { display: none; }
 }
+
+/* ================= Тёмная тема ================= */
+.theme-dark {
+  --bg: #0f1626;
+  --card: #1a2437;
+  --ink: #e8eefb;
+  --muted: #95a2ba;
+  --line: #2b3752;
+  --theirs: #24304a;
+  --brand: #6f97ff;
+  --brand-dark: #5a83ee;
+  --mine: #3f6fe0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.theme-dark input,
+.theme-dark textarea,
+.theme-dark select { background: #121c2e; color: var(--ink); }
+.theme-dark .emoji-btn:hover { background: #23304c; }
+.theme-dark .person:hover { background: #1e2a42; }
+.theme-dark .btn.ghost:hover { background: #1e2a42; }
+.theme-dark .flash { background: #1b2a4a; border-color: #2f4470; color: #cddcff; }
+.theme-dark .badge { background: #22304f; border-color: #2f4470; color: #cddcff; }
+.theme-dark .tg-grip:hover,
+.theme-dark .tg-grip.active { background: #24304c; }
+.theme-dark .bg-default { background: linear-gradient(180deg, #141d30, #0f1728); }
+.theme-dark .avatar.img { background: #121c2e; }
+
+/* В тёмной теме фон приложения всегда тёмный (светлые узоры не годятся) */
+.theme-dark.bg-gray,
+.theme-dark.bg-blue,
+.theme-dark.bg-green,
+.theme-dark.bg-pink,
+.theme-dark.bg-yellow,
+.theme-dark.bg-sky,
+.theme-dark.bg-sunset,
+.theme-dark.bg-mint,
+.theme-dark.bg-dots,
+.theme-dark.bg-stripes,
+.theme-dark.bg-diag,
+.theme-dark.bg-cross,
+.theme-dark.bg-checks,
+.theme-dark.bg-grid,
+.theme-dark.bg-hearts,
+.theme-dark.bg-stars,
+.theme-dark.bg-plus { background: var(--bg); }
+.theme-dark.bg-default { background: linear-gradient(180deg, #141d30, #0f1728); }

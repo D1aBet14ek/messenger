@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" class="theme-{{ theme }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,12 +7,12 @@
   {# Список НЕ перезагружается целиком — счётчики обновляются на месте (без мерцания). #}
 
   {# Фон сразу — чтобы не мелькал белый цвет #}
-  <style>html, body { margin: 0; background: #eef1f6; }</style>
+  <style>html { margin: 0; background: {{ '#0f1626' if theme == 'dark' else '#eef1f6' }}; }</style>
 
   <title>Контакты</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="frame-body list-body">
+<body class="frame-body list-body theme-{{ theme }}{% if app_bg %} bg-{{ app_bg }}{% endif %}">
   <div class="list-wrap">
 
     {% if incoming %}
