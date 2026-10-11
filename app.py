@@ -165,11 +165,25 @@ group_messages_table = Table(
 
 def init_db():
     """Создаём таблицы, если их ещё нет. Можно вызывать сколько угодно раз."""
-    # Пишем в лог, куда сохраняется база — чтобы это было видно в Dokploy → Logs.
+    # Полезные строки для проверки в Dokploy → Logs.
     if DATABASE_URL.startswith("sqlite"):
         print("Хранилище данных (файл): {}".format(DB_PATH), flush=True)
+        # Проверяем, что папка данных — это настоящий постоянный том.
+        if DATA_DIR != BASE_DIR and not os.path.ismount(DATA_DIR):
+            print(
+                "ВНИМАНИЕ: папка {} не является постоянным томом. "
+                "Аккаунты будут пропадать при перезапуске!".format(DATA_DIR),
+                flush=True,
+            )
     else:
         print("Хранилище данных: PostgreSQL (внешняя база)", flush=True)
+
+    if not os.environ.get("SECRET_KEY"):
+        print(
+            "Подсказка: SECRET_KEY не задан — вход может сбрасываться.",
+            flush=True,
+        )
+
     metadata.create_all(engine)
 
 
