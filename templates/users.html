@@ -1,27 +1,61 @@
 {% extends "base.html" %}
-{% block title %}Контакты — Поговорим{% endblock %}
+{% block title %}Чаты — Поговорим{% endblock %}
+{% block body_class %}wide{% endblock %}
 
 {% block content %}
-<div class="chat-head">
-  <h1>Контакты</h1>
-  <a class="btn small" href="{{ url_for('users') }}">🔄 Обновить</a>
+<div class="tg">
+  {# Список чатов — СЛЕВА #}
+  <aside class="tg-side" id="side">
+    <iframe class="side-frame" src="{{ url_for('chats_frame') }}" title="Список чатов"></iframe>
+  </aside>
+
+  <div class="tg-grip" id="grip" title="Держи и тяни, чтобы изменить ширину"></div>
+
+  {# Область чата — СПРАВА (пока ничего не выбрано) #}
+  <div class="tg-main">
+    <div class="chat-head"><h1>Поговорим</h1></div>
+    <div class="empty-state">
+      <div class="empty-icon">💬</div>
+      <p>Выбери чат или группу слева.<br>
+      Хочешь кого-то добавить — введи его <b>@логин</b> в списке слева.</p>
+    </div>
+  </div>
 </div>
 
-<form method="post" action="{{ url_for('friends_add') }}" class="card" autocomplete="off">
-  <label>Логин человека (@имя)
-    <input name="who" required maxlength="20" placeholder="@anna_2026" autofocus>
-    <span class="hint">Человек получит заявку и подтвердит её — тогда вы появитесь
-      друг у друга в контактах и сможете общаться.</span>
-  </label>
-  <button class="btn" type="submit">Отправить заявку</button>
-</form>
+<script>
+  // Подвижная граница (список слева, чат справа)
+  (function () {
+    var grip = document.getElementById("grip");
+    var side = document.getElementById("side");
+    var tg = document.querySelector(".tg");
+    var drag = false;
+    var saved = localStorage.getItem("sideWidth");
+    if (saved) side.style.flexBasis = saved + "px";
 
-{#
-  Список контактов, заявок и групп — в отдельной рамке (iframe).
-  Внутри неё стоит <meta refresh>, поэтому обновляется только она,
-  а вся страница не мигает. Без JavaScript.
-#}
-<iframe class="list-frame"
-        src="{{ url_for('chats_frame') }}"
-        title="Контакты, заявки и группы"></iframe>
+    grip.addEventListener("pointerdown", function (e) {
+      drag = true;
+      grip.classList.add("active");
+      document.body.style.userSelect = "none";
+      try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+      e.preventDefault();
+    });
+    window.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      var rect = tg.getBoundingClientRect();
+      var w = e.clientX - rect.left;
+      w = Math.max(160, Math.min(w, rect.width - 300));
+      side.style.flexBasis = w + "px";
+    });
+    function stop(e) {
+      if (!drag) return;
+      drag = false;
+      grip.classList.remove("active");
+      document.body.style.userSelect = "";
+      try { grip.releasePointerCapture(e.pointerId); } catch (err) {}
+      localStorage.setItem("sideWidth", parseInt(side.style.flexBasis) || 320);
+    }
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+  })();
+</script>
 {% endblock %}
