@@ -62,14 +62,23 @@
       }
     });
 
-    // Кнопка «Закрыть программу» — показываем только внутри программы для ПК
+    // Кнопка «Закрыть программу» — показываем только внутри программы для ПК.
+    // Библиотека «подключается» с задержкой, поэтому проверяем несколько раз.
     var exitBtn = document.getElementById("exitApp");
+    function hasPcApi() {
+      return !!(window.pywebview && window.pywebview.api && window.pywebview.api.close_app);
+    }
     function showExit() { if (exitBtn) exitBtn.hidden = false; }
-    if (window.pywebview && window.pywebview.api) { showExit(); }
+    if (hasPcApi()) showExit();
     window.addEventListener("pywebviewready", showExit);
+    var _tries = 0;
+    var _timer = setInterval(function () {
+      if (hasPcApi()) { showExit(); clearInterval(_timer); }
+      if (++_tries > 40) clearInterval(_timer);   // хватит примерно на 10 секунд
+    }, 250);
     if (exitBtn) {
       exitBtn.addEventListener("click", function () {
-        if (window.pywebview && window.pywebview.api && window.pywebview.api.close_app) {
+        if (hasPcApi()) {
           window.pywebview.api.close_app();
         }
       });
