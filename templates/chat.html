@@ -1,39 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Чат с {{ other['display_name'] }} — Поговорим{% endblock %}
+{% block body_class %}wide{% endblock %}
 
 {% block content %}
-<div class="chat-head">
-  <a class="btn small ghost" href="{{ url_for('users') }}">← Все люди</a>
-  <h1>Чат с {{ other['display_name'] }}</h1>
-  <span class="plogin">@{{ other['username'] }}</span>
+<div class="tg">
+  <div class="tg-main">
+    <div class="chat-head">
+      <a class="btn small ghost" href="{{ url_for('users') }}">← Все чаты</a>
+      <h1>Чат с {{ other['display_name'] }}</h1>
+      <span class="plogin">@{{ other['username'] }}</span>
+    </div>
+
+    <div id="messages" class="messages bg-{{ background }}"></div>
+
+    <form method="post" class="composer-box" autocomplete="off">
+      <div class="composer">
+        <input name="body" id="body" placeholder="Напиши сообщение..." maxlength="2000" value="{{ draft }}" autofocus>
+        <button class="btn" type="submit" name="send" value="1">Отправить</button>
+      </div>
+      <div class="bg-bar">
+        <span class="bg-label">Фон:</span>
+        {% for b in backgrounds %}
+          <button class="bg-swatch bg-{{ b }}" type="submit" name="set_bg" value="{{ b }}"
+                  title="Сменить фон чата"></button>
+        {% endfor %}
+      </div>
+      <div class="emoji-bar">
+        {% for e in emoji %}
+          <button class="emoji-btn" type="submit" name="add_emoji" value="{{ e }}"
+                  title="Добавить смайлик">{{ e }}</button>
+        {% endfor %}
+      </div>
+    </form>
+  </div>
+
+  {# Подвижная граница: потяни, чтобы изменить ширину списка #}
+  <div class="tg-grip" id="grip" title="Потяни, чтобы изменить ширину"></div>
+
+  {# Список чатов справа #}
+  <aside class="tg-side" id="side">
+    <iframe class="side-frame" src="{{ url_for('chats_frame') }}" title="Список чатов"></iframe>
+  </aside>
 </div>
-
-{# Сообщения показываются здесь и обновляются на месте — без перезагрузки и мерцания #}
-<div id="messages" class="messages bg-{{ background }}"></div>
-
-<form method="post" class="composer-box" autocomplete="off">
-  <div class="composer">
-    <input name="body" id="body" placeholder="Напиши сообщение..." maxlength="2000" value="{{ draft }}" autofocus>
-    <button class="btn" type="submit" name="send" value="1">Отправить</button>
-  </div>
-
-  <div class="bg-bar">
-    <span class="bg-label">Фон:</span>
-    {% for b in backgrounds %}
-      <button class="bg-swatch bg-{{ b }}" type="submit" name="set_bg" value="{{ b }}"
-              title="Сменить фон чата"></button>
-    {% endfor %}
-  </div>
-
-  <div class="emoji-bar">
-    {% for e in emoji %}
-      <button class="emoji-btn" type="submit" name="add_emoji" value="{{ e }}"
-              title="Добавить смайлик">{{ e }}</button>
-    {% endfor %}
-  </div>
-</form>
-
-<p class="muted center small-hint">Сообщения появляются сами — около каждые 3 секунды.</p>
 
 <script>
   var box = document.getElementById("messages");
@@ -68,5 +76,33 @@
   }
   load();
   setInterval(load, 3000);
+
+  // Подвижная граница между чатом и списком
+  (function () {
+    var grip = document.getElementById("grip");
+    var side = document.getElementById("side");
+    var tg = document.querySelector(".tg");
+    var drag = false;
+    var saved = localStorage.getItem("sideWidth");
+    if (saved) side.style.flexBasis = saved + "px";
+    grip.addEventListener("pointerdown", function (e) {
+      drag = true;
+      grip.classList.add("active");
+      e.preventDefault();
+    });
+    window.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      var rect = tg.getBoundingClientRect();
+      var w = rect.right - e.clientX;
+      w = Math.max(190, Math.min(w, rect.width - 280));
+      side.style.flexBasis = w + "px";
+    });
+    window.addEventListener("pointerup", function () {
+      if (!drag) return;
+      drag = false;
+      grip.classList.remove("active");
+      localStorage.setItem("sideWidth", parseInt(side.style.flexBasis) || 340);
+    });
+  })();
 </script>
 {% endblock %}
