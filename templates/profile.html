@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Профиль — Поговорим{% endblock %}
+{% block title %}Настройки — Поговорим{% endblock %}
 
 {% block content %}
-<h1>Твой профиль</h1>
+<h1>Настройки</h1>
 
 <div class="profile-head">
   {% if user['avatar'] %}
@@ -49,5 +49,15 @@
 
   <button class="btn" type="submit">Сохранить</button>
   <p class="muted"><a href="{{ url_for('users') }}">← Назад к чатам</a></p>
+</form>
+
+<form method="post" action="{{ url_for('settings_background') }}" class="card">
+  <p class="muted">Фон чата по умолчанию (во всех чатах):</p>
+  <div class="bg-bar">
+    {% for b in backgrounds %}
+      <button class="bg-swatch bg-{{ b }}" type="submit" name="set_bg" value="{{ b }}"
+              title="Выбрать фон"></button>
+    {% endfor %}
+  </div>
 </form>
 {% endblock %}

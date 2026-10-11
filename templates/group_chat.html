@@ -21,25 +21,29 @@
 
     <div id="messages" class="messages bg-{{ background }}"></div>
 
-    <form method="post" class="composer-box" autocomplete="off">
-      <div class="composer">
-        <input name="body" id="body" placeholder="Напиши сообщение группе..." maxlength="2000" value="{{ draft }}" autofocus>
-        <button class="btn" type="submit" name="send" value="1">Отправить</button>
-      </div>
-      <div class="bg-bar">
-        <span class="bg-label">Фон:</span>
-        {% for b in backgrounds %}
-          <button class="bg-swatch bg-{{ b }}" type="submit" name="set_bg" value="{{ b }}"
-                  title="Сменить фон чата"></button>
-        {% endfor %}
-      </div>
-      <div class="emoji-bar">
-        {% for e in emoji %}
-          <button class="emoji-btn" type="submit" name="add_emoji" value="{{ e }}"
-                  title="Добавить смайлик">{{ e }}</button>
-        {% endfor %}
-      </div>
-    </form>
+    {% if can_write %}
+      <form method="post" class="composer-box" autocomplete="off">
+        <div class="composer">
+          <input name="body" id="body" placeholder="Напиши сообщение группе..." maxlength="2000" value="{{ draft }}" autofocus>
+          <button class="btn" type="submit" name="send" value="1">Отправить</button>
+        </div>
+        <div class="bg-bar">
+          <span class="bg-label">Фон:</span>
+          {% for b in backgrounds %}
+            <button class="bg-swatch bg-{{ b }}" type="submit" name="set_bg" value="{{ b }}"
+                    title="Сменить фон чата"></button>
+          {% endfor %}
+        </div>
+        <div class="emoji-bar">
+          {% for e in emoji %}
+            <button class="emoji-btn" type="submit" name="add_emoji" value="{{ e }}"
+                    title="Добавить смайлик">{{ e }}</button>
+          {% endfor %}
+        </div>
+      </form>
+    {% else %}
+      <p class="muted center small-hint">Писать в этой группе могут только админы.</p>
+    {% endif %}
 
     <div class="group-panel">
       <h2 class="panel-title">Участники ({{ members|length }})</h2>
@@ -54,20 +58,51 @@
             <span class="ptext">
               <span class="pname">{{ m['display_name'] }}
                 {% if m['role'] == 'admin' %}<span class="badge">админ</span>{% endif %}</span>
-              <span class="plogin">@{{ m['username'] }}{% if m['bio'] %} · {{ m['bio'] }}{% endif %}</span>
+              <span class="plogin">@{{ m['username'] }}</span>
             </span>
-            {% if is_admin and m['role'] != 'admin' %}
-              <form method="post" class="inline-form"
-                    action="{{ url_for('group_remove_member', group_id=group['id'], user_id=m['user_id']) }}">
-                <button class="btn small ghost" type="submit">Убрать</button>
-              </form>
+            {% if is_admin and m['user_id'] != group['created_by'] %}
+              <span class="member-actions">
+                {% if m['role'] == 'admin' %}
+                  <form method="post" action="{{ url_for('group_demote', group_id=group['id'], user_id=m['user_id']) }}">
+                    <button class="btn small ghost" type="submit">Снять админа</button>
+                  </form>
+                {% else %}
+                  <form method="post" action="{{ url_for('group_promote', group_id=group['id'], user_id=m['user_id']) }}">
+                    <button class="btn small" type="submit">Сделать админом</button>
+                  </form>
+                {% endif %}
+                {% if m['role'] != 'admin' %}
+                  <form method="post" action="{{ url_for('group_remove_member', group_id=group['id'], user_id=m['user_id']) }}">
+                    <button class="btn small ghost danger" type="submit">Убрать</button>
+                  </form>
+                {% endif %}
+              </span>
             {% endif %}
           </li>
         {% endfor %}
       </ul>
 
       {% if is_admin %}
-        <h2 class="panel-title">Добавить людей</h2>
+        <h2 class="panel-title">Настройки группы</h2>
+        <form method="post" action="{{ url_for('group_settings', group_id=group['id']) }}" class="card">
+          <label>Кто может писать
+            <select name="write_mode">
+              <option value="all" {% if (group['write_mode'] or 'all') == 'all' %}selected{% endif %}>Все участники</option>
+              <option value="admins" {% if group['write_mode'] == 'admins' %}selected{% endif %}>Только админы</option>
+            </select>
+          </label>
+          <label>Кто может добавлять людей
+            <select name="add_mode">
+              <option value="all" {% if (group['add_mode'] or 'all') == 'all' %}selected{% endif %}>Все участники</option>
+              <option value="admins" {% if group['add_mode'] == 'admins' %}selected{% endif %}>Только админы</option>
+            </select>
+          </label>
+          <button class="btn" type="submit">Сохранить настройки</button>
+        </form>
+      {% endif %}
+
+      <h2 class="panel-title">Добавить людей</h2>
+      {% if can_add %}
         {% if candidates %}
           <form method="post" action="{{ url_for('group_add_members', group_id=group['id']) }}">
             <ul class="checklist">
@@ -84,11 +119,25 @@
             <button class="btn" type="submit">Добавить в группу</button>
           </form>
         {% else %}
-          <p class="muted">Все уже в группе.</p>
+          <p class="muted">Все твои друзья уже в группе.</p>
         {% endif %}
       {% else %}
-        <p class="muted">Добавлять и убирать людей может только админ группы.</p>
+        <p class="muted">Добавлять людей в этой группе могут только админы.</p>
       {% endif %}
+
+      <div class="group-actions">
+        {% if is_creator %}
+          <form method="post" action="{{ url_for('group_delete', group_id=group['id']) }}"
+                onsubmit="return confirm('Удалить группу целиком? Это нельзя отменить.');">
+            <button class="btn small danger" type="submit">Удалить группу</button>
+          </form>
+        {% else %}
+          <form method="post" action="{{ url_for('group_leave', group_id=group['id']) }}"
+                onsubmit="return confirm('Выйти из группы?');">
+            <button class="btn small ghost" type="submit">Выйти из группы</button>
+          </form>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>

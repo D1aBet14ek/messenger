@@ -108,6 +108,16 @@ textarea {
   resize: vertical;
 }
 textarea:focus { outline: 2px solid var(--brand); border-color: transparent; }
+select {
+  font-family: inherit;
+  font-size: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcfe;
+  font-weight: 400;
+}
+select:focus { outline: 2px solid var(--brand); border-color: transparent; }
 hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .hint { font-weight: 400; color: var(--muted); font-size: 13px; }
 
@@ -413,6 +423,13 @@ body.wide .wrap { max-width: none; padding: 10px 14px 16px; }
 .member-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .member-list li { display: flex; align-items: center; gap: 10px; }
 .inline-form { margin-left: auto; }
+.member-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.member-actions form { margin: 0; }
+.group-actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn.danger { background: #e5484d; }
+.btn.danger:hover { background: #c93b3f; }
+.btn.ghost.danger { color: #c93b3f; border-color: #f1c6c7; background: transparent; }
+.btn.ghost.danger:hover { background: #fdeced; }
 
 /* Строка «заявка в друзья» */
 .people li.request {

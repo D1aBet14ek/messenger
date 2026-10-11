@@ -187,6 +187,8 @@ groups_table = Table(
     Column("name", String(60), nullable=False),                              # название группы
     Column("created_by", Integer, ForeignKey("users.id"), nullable=False),   # кто создал
     Column("created_at", String(30), nullable=False),
+    Column("write_mode", String(10)),   # "all" — пишут все, "admins" — только админы
+    Column("add_mode", String(10)),     # "all" — добавлять могут все, "admins" — только админы
 )
 
 # Таблица «Участники групп» — кто в какой группе и кем является
@@ -212,31 +214,34 @@ group_messages_table = Table(
 
 
 def ensure_columns():
-    """
-    Простая «миграция». Если база создана раньше и в таблице users нет новых
-    столбцов (bio, avatar, avatar_mime) — добавляем их на месте.
-    Работает и с SQLite, и с PostgreSQL.
-    """
+    """Простая «миграция»: добавляем недостающие столбцы в существующие таблицы."""
     insp = inspect(engine)
-    if not insp.has_table("users"):
-        return
-    existing = {col["name"] for col in insp.get_columns("users")}
-    # В разных базах данных свой тип для «двоичных данных»
     blob_type = "BYTEA" if engine.dialect.name == "postgresql" else "BLOB"
-    needed = {
-        "phone": "VARCHAR(20)",
-        "bio": "TEXT",
-        "background": "VARCHAR(20)",
-        "avatar": blob_type,
-        "avatar_mime": "VARCHAR(50)",
+    plan = {
+        "users": {
+            "phone": "VARCHAR(20)",
+            "bio": "TEXT",
+            "background": "VARCHAR(20)",
+            "avatar": blob_type,
+            "avatar_mime": "VARCHAR(50)",
+        },
+        "groups": {
+            "write_mode": "VARCHAR(10)",
+            "add_mode": "VARCHAR(10)",
+        },
     }
-    missing = {name: ddl for name, ddl in needed.items() if name not in existing}
-    if not missing:
-        return
-    with engine.begin() as conn:
-        for name, ddl in missing.items():
-            conn.execute(text("ALTER TABLE users ADD COLUMN {} {}".format(name, ddl)))
-            print("Создан новый столбец users.{}".format(name), flush=True)
+    for table, needed in plan.items():
+        if not insp.has_table(table):
+            continue
+        existing = {col["name"] for col in insp.get_columns(table)}
+        for name, ddl in needed.items():
+            if name in existing:
+                continue
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE {} ADD COLUMN {} {}".format(table, name, ddl))
+                )
+            print("Создан новый столбец {}.{}".format(table, name), flush=True)
 
 
 def init_db():
@@ -668,7 +673,30 @@ def profile():
     user = conn.execute(
         select(users_table).where(users_table.c.id == me["id"])
     ).mappings().first()
-    return render_template("profile.html", user=user)
+    return render_template(
+        "profile.html",
+        user=user,
+        backgrounds=BACKGROUNDS,
+        background=me["background"] or "default",
+    )
+
+
+@app.route("/settings/background", methods=["POST"])
+def settings_background():
+    """Сменить фон чата по умолчанию (из настроек)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    set_bg = request.form.get("set_bg")
+    if set_bg in BACKGROUNDS:
+        conn = get_conn()
+        conn.execute(
+            update(users_table).where(users_table.c.id == me["id"]).values(background=set_bg)
+        )
+        conn.commit()
+        flash("Фон чата сохранён.")
+    return redirect(url_for("profile"))
 
 
 @app.route("/avatar/<int:user_id>")
@@ -1213,6 +1241,9 @@ def group_chat(group_id):
         if not body:
             flash("Пустое сообщение отправлять не нужно. 🙂")
             session[draft_key] = ""
+        elif (group["write_mode"] or "all") == "admins" and membership["role"] != "admin":
+            flash("В этой группе писать могут только админы.")
+            session[draft_key] = raw[:2000]
         elif len(body) > 2000:
             flash("Слишком длинное сообщение (максимум 2000 символов).")
             session[draft_key] = raw[:2000]
@@ -1259,6 +1290,7 @@ def group_chat(group_id):
             .order_by(func.lower(users_table.c.display_name))
         ).mappings().all()
 
+    is_admin = membership["role"] == "admin"
     draft = session.get(draft_key, "")
     return render_template(
         "group_chat.html",
@@ -1267,7 +1299,10 @@ def group_chat(group_id):
         candidates=candidates,
         draft=draft,
         emoji=EMOJI,
-        is_admin=(membership["role"] == "admin"),
+        is_admin=is_admin,
+        is_creator=(group["created_by"] == me["id"]),
+        can_write=is_admin or (group["write_mode"] or "all") != "admins",
+        can_add=is_admin or (group["add_mode"] or "all") == "all",
         backgrounds=BACKGROUNDS,
         background=me["background"] or "default",
     )
@@ -1310,10 +1345,13 @@ def group_add_members(group_id):
     me = current_user()
     conn = get_conn()
     membership = group_membership(conn, group_id, me["id"])
-    if membership is None:
+    group = conn.execute(
+        select(groups_table).where(groups_table.c.id == group_id)
+    ).mappings().first()
+    if membership is None or group is None:
         return redirect(url_for("users"))
-    if membership["role"] != "admin":
-        flash("Добавлять людей может только админ группы.")
+    if membership["role"] != "admin" and (group["add_mode"] or "all") != "all":
+        flash("Добавлять людей в этой группе могут только админы.")
         return redirect(url_for("group_chat", group_id=group_id))
 
     now = datetime.now().isoformat(timespec="seconds")
@@ -1369,6 +1407,169 @@ def group_remove_member(group_id, user_id):
     conn.commit()
     flash("Человек убран из группы.")
     return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/groups/<int:group_id>/settings", methods=["POST"])
+def group_settings(group_id):
+    """Настройки группы: кто пишет, кто добавляет людей (только для админов)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    if membership is None:
+        return redirect(url_for("users"))
+    if membership["role"] != "admin":
+        flash("Менять настройки может только админ группы.")
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    values = {}
+    write_mode = request.form.get("write_mode")
+    add_mode = request.form.get("add_mode")
+    if write_mode in ("all", "admins"):
+        values["write_mode"] = write_mode
+    if add_mode in ("all", "admins"):
+        values["add_mode"] = add_mode
+    if values:
+        conn.execute(
+            update(groups_table).where(groups_table.c.id == group_id).values(**values)
+        )
+        conn.commit()
+        flash("Настройки группы сохранены.")
+    return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/groups/<int:group_id>/promote/<int:user_id>", methods=["POST"])
+def group_promote(group_id, user_id):
+    """Назначить участника админом группы."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    if membership is None or membership["role"] != "admin":
+        flash("Назначать админов может только админ группы.")
+        return redirect(url_for("group_chat", group_id=group_id))
+    if group_membership(conn, group_id, user_id) is None:
+        flash("Такого участника нет.")
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    conn.execute(
+        update(group_members_table)
+        .where(
+            and_(
+                group_members_table.c.group_id == group_id,
+                group_members_table.c.user_id == user_id,
+            )
+        )
+        .values(role="admin")
+    )
+    conn.commit()
+    flash("Назначен админ. 👍")
+    return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/groups/<int:group_id>/demote/<int:user_id>", methods=["POST"])
+def group_demote(group_id, user_id):
+    """Снять админа (создателя снять нельзя)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    membership = group_membership(conn, group_id, me["id"])
+    group = conn.execute(
+        select(groups_table).where(groups_table.c.id == group_id)
+    ).mappings().first()
+    if membership is None or membership["role"] != "admin" or group is None:
+        flash("Снимать админов может только админ группы.")
+        return redirect(url_for("group_chat", group_id=group_id))
+    if user_id == group["created_by"]:
+        flash("Создателя группы снять нельзя.")
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    conn.execute(
+        update(group_members_table)
+        .where(
+            and_(
+                group_members_table.c.group_id == group_id,
+                group_members_table.c.user_id == user_id,
+            )
+        )
+        .values(role="member")
+    )
+    conn.commit()
+    flash("Теперь это обычный участник.")
+    return redirect(url_for("group_chat", group_id=group_id))
+
+
+@app.route("/groups/<int:group_id>/leave", methods=["POST"])
+def group_leave(group_id):
+    """Выйти из группы."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    group = conn.execute(
+        select(groups_table).where(groups_table.c.id == group_id)
+    ).mappings().first()
+    if group is None or group_membership(conn, group_id, me["id"]) is None:
+        return redirect(url_for("users"))
+    if group["created_by"] == me["id"]:
+        flash("Создатель не может выйти — группу можно удалить.")
+        return redirect(url_for("group_chat", group_id=group_id))
+
+    conn.execute(
+        delete(group_members_table).where(
+            and_(
+                group_members_table.c.group_id == group_id,
+                group_members_table.c.user_id == me["id"],
+            )
+        )
+    )
+    conn.commit()
+    flash("Ты вышел из группы.")
+    return redirect(url_for("users"))
+
+
+@app.route("/groups/<int:group_id>/delete", methods=["POST"])
+def group_delete(group_id):
+    """Удалить группу целиком (только создатель)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    group = conn.execute(
+        select(groups_table).where(groups_table.c.id == group_id)
+    ).mappings().first()
+    if group is None or group["created_by"] != me["id"]:
+        flash("Удалить группу может только её создатель.")
+        return redirect(url_for("users"))
+
+    conn.execute(
+        delete(group_messages_table).where(group_messages_table.c.group_id == group_id)
+    )
+    conn.execute(
+        delete(group_members_table).where(group_members_table.c.group_id == group_id)
+    )
+    conn.execute(
+        delete(reads_table).where(
+            and_(reads_table.c.kind == "group", reads_table.c.peer_id == group_id)
+        )
+    )
+    conn.execute(delete(groups_table).where(groups_table.c.id == group_id))
+    conn.commit()
+    flash("Группа удалена.")
+    return redirect(url_for("users"))
 
 
 @app.route("/api/chat/<int:other_id>")
