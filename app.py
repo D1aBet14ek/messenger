@@ -220,8 +220,18 @@ def init_db():
             flush=True,
         )
 
-    metadata.create_all(engine)
-    ensure_columns()
+    try:
+        metadata.create_all(engine)
+        ensure_columns()
+    except Exception as exc:  # noqa: BLE001 — покажем понятную ошибку в логе
+        print("ОШИБКА БАЗЫ ДАННЫХ:", exc, flush=True)
+        print(
+            "Проверь DATABASE_URL: адрес базы должен быть ВНУТРЕННИМ (Internal), "
+            "база — в том же проекте и запущена.",
+            flush=True,
+        )
+        # Специально НЕ падаем: приложение останется доступным, а страница
+        # /health покажет, что именно не так. Так проще понять причину.
 
 
 def get_conn():
@@ -314,6 +324,26 @@ def index():
     if "user_id" in session:
         return redirect(url_for("users"))
     return redirect(url_for("login"))
+
+
+@app.route("/health")
+def health():
+    """
+    Страничка состояния. Открой её, если сайт не работает или «слетают» аккаунты:
+    она скажет, доступна ли база и ГДЕ она хранится.
+    """
+    try:
+        conn = get_conn()
+        conn.execute(select(users_table.c.id).limit(1))
+    except Exception as exc:  # noqa: BLE001
+        return "ОШИБКА базы данных: {}".format(exc), 500
+
+    if DATABASE_URL.startswith("sqlite"):
+        warn = ""
+        if DATA_DIR != BASE_DIR and not os.path.ismount(DATA_DIR):
+            warn = "  <-- ВНИМАНИЕ: это НЕ постоянный том, аккаунты слетят!"
+        return "OK: база доступна. Файл: {}{}".format(DB_PATH, warn)
+    return "OK: база доступна (PostgreSQL — постоянная)"
 
 
 @app.route("/register", methods=["GET", "POST"])
