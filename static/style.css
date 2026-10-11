@@ -14,6 +14,9 @@
 
 * { box-sizing: border-box; }
 
+/* Фон самой «страницы» — чтобы при перезагрузке не мелькал белый цвет */
+html { background: var(--bg); scrollbar-gutter: stable; }
+
 body {
   margin: 0;
   background: var(--bg);
@@ -149,8 +152,21 @@ input:focus { outline: 2px solid var(--brand); border-color: transparent; }
   background: var(--card);
 }
 
-/* Внутренняя страничка с сообщениями (живёт внутри рамки) */
-.frame-body { margin: 0; background: var(--card); }
+/* Рамка со списком чатов и людей — обновляется сама, но не мигает вся страница */
+.list-frame {
+  display: block;
+  width: 100%;
+  height: 80vh;
+  min-height: 400px;
+  border: 0;
+  background: #eef1f6;
+}
+.list-body { background: var(--bg); }
+.list-wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+
+/* Внутренняя страничка с сообщениями (живёт внутри рамки).
+   Фон такой же, как у рамки, поэтому при самообновлении НЕТ белого мигания. */
+.frame-html, .frame-body { margin: 0; background: var(--card); }
 .messages {
   min-height: 100vh;             /* занять всю высоту рамки */
   padding: 16px;

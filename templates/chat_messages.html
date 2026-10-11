@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" class="frame-html">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,6 +11,9 @@
     Работает и для личных чатов, и для групп.
   #}
   <meta http-equiv="refresh" content="3">
+
+  {# Фон задаём сразу в самой страничке — чтобы при перезагрузке не мелькал белый цвет #}
+  <style>html, body { margin: 0; background: #ffffff; }</style>
 
   <title>Сообщения</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">

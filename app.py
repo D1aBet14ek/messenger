@@ -335,22 +335,14 @@ def logout():
     return redirect(url_for("login"))
 
 
-@app.route("/users")
-def users():
-    """Список всех людей, кроме меня — с кем можно поговорить."""
-    r = not_logged_in_redirect()
-    if r:
-        return r
-
-    me = current_user()
-    conn = get_conn()
+def load_chat_lists(conn, me_id):
+    """Возвращает два списка для страницы чатов: (люди, мои группы)."""
     others = conn.execute(
         select(users_table.c.id, users_table.c.username, users_table.c.display_name)
-        .where(users_table.c.id != me["id"])
+        .where(users_table.c.id != me_id)
         .order_by(func.lower(users_table.c.display_name))
     ).mappings().all()
 
-    # Мои группы (где я участник)
     my_groups = conn.execute(
         select(groups_table.c.id, groups_table.c.name)
         .select_from(
@@ -358,11 +350,35 @@ def users():
                 group_members_table, groups_table.c.id == group_members_table.c.group_id
             )
         )
-        .where(group_members_table.c.user_id == me["id"])
+        .where(group_members_table.c.user_id == me_id)
         .order_by(func.lower(groups_table.c.name))
     ).mappings().all()
 
-    return render_template("users.html", others=others, groups=my_groups)
+    return others, my_groups
+
+
+@app.route("/users")
+def users():
+    """
+    Страница со списком чатов. Сам список показывается в отдельной рамке (iframe),
+    поэтому при самообновлении мигает только рамка, а не вся страница.
+    """
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    return render_template("users.html")
+
+
+@app.route("/chats-frame")
+def chats_frame():
+    """Маленькое «окошко» со списком чатов и людей — для самообновляемой рамки."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    others, my_groups = load_chat_lists(get_conn(), me["id"])
+    return render_template("chats_list.html", others=others, groups=my_groups)
 
 
 @app.route("/chat/<int:other_id>", methods=["GET", "POST"])

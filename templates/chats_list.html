@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  {# Список чатов обновляется сам каждые 5 секунд — но только эта рамка,
+     поэтому вся страница не мигает. #}
+  <meta http-equiv="refresh" content="5">
+
+  {# Фон сразу — чтобы при перезагрузке не мелькал белый цвет #}
+  <style>html, body { margin: 0; background: #eef1f6; }</style>
+
+  <title>Чаты и люди</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="frame-body list-body">
+  <div class="list-wrap">
+    <h1>Твои группы</h1>
+    {# target="_top" — чтобы клик открывал страницу целиком, а не внутри рамки #}
+    <p><a class="btn" href="{{ url_for('new_group') }}" target="_top">+ Создать группу</a></p>
+
+    {% if groups %}
+      <ul class="people">
+        {% for g in groups %}
+          <li>
+            <a class="person" href="{{ url_for('group_chat', group_id=g['id']) }}" target="_top">
+              <span class="avatar group">👥</span>
+              <span class="ptext">
+                <span class="pname">{{ g['name'] }}</span>
+                <span class="plogin">группа</span>
+              </span>
+              <span class="parrow">→</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="card">
+        <p class="muted">Групп пока нет. Создай первую и добавь друзей.</p>
+      </div>
+    {% endif %}
+
+    <h1>Люди</h1>
+
+    {% if others %}
+      <ul class="people">
+        {% for u in others %}
+          <li>
+            <a class="person" href="{{ url_for('chat', other_id=u['id']) }}" target="_top">
+              <span class="avatar">{{ u['display_name'][0]|upper }}</span>
+              <span class="ptext">
+                <span class="pname">{{ u['display_name'] }}</span>
+                <span class="plogin">@{{ u['username'] }}</span>
+              </span>
+              <span class="parrow">→</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="card">
+        <p class="muted">Пока здесь только ты. Пригласи друга зарегистрироваться —
+        и он сразу появится в этом списке.</p>
+      </div>
+    {% endif %}
+
+    <p class="muted center small-hint">
+      Список обновляется сам — новые люди и группы появляются примерно каждые 5 секунд. 🙂
+    </p>
+  </div>
+</body>
+</html>
