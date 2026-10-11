@@ -767,6 +767,25 @@ def profile():
     )
 
 
+@app.route("/settings")
+def settings():
+    """Страница настроек: тема и фоны (отдельно от профиля)."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+    me = current_user()
+    conn = get_conn()
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+    return render_template(
+        "settings.html",
+        user=user,
+        backgrounds=BACKGROUNDS,
+        background=me["background"] or "default",
+    )
+
+
 @app.route("/settings/background", methods=["POST"])
 def settings_background():
     """Сменить фон чата по умолчанию (из настроек)."""
@@ -782,7 +801,7 @@ def settings_background():
         )
         conn.commit()
         flash("Фон чата сохранён.")
-    return redirect(url_for("profile"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/settings/theme", methods=["POST"])
@@ -800,7 +819,7 @@ def settings_theme():
         )
         conn.commit()
         flash("Тема изменена.")
-    return redirect(url_for("profile"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/settings/appbg", methods=["POST"])
@@ -820,7 +839,7 @@ def settings_appbg():
         )
         conn.commit()
         flash("Фон приложения сохранён.")
-    return redirect(url_for("profile"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/avatar/<int:user_id>")
