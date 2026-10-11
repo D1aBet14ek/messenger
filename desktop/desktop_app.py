@@ -21,7 +21,7 @@ from tkinter import messagebox, simpledialog
 import webview
 
 # === Версия программы (меняй вместе с desktop/version.txt на сервере) ===
-VERSION = "1.6"
+VERSION = "1.7"
 
 # === Адрес твоего мессенджера ===
 # Если здесь пусто — программа спросит адрес один раз и запомнит.

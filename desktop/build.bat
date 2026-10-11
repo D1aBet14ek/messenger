@@ -23,6 +23,9 @@ rem Собираем в режиме --console (окно консоли прог
 rem потому что антивирус часто блокирует «оконный» загрузчик PyInstaller (runw.exe).
 %PY% -m PyInstaller --noconfirm --onefile --console --name Pogovorim --icon=app.ico desktop_app.py
 
+rem Убираем чёрное окно консоли (меняем «подсистему» у готового файла)
+%PY% patch_subsystem.py "dist\Pogovorim.exe"
+
 echo.
 echo [4/4] Копирую готовый файл...
 copy /y "dist\Pogovorim.exe" "Pogovorim.exe" >nul
