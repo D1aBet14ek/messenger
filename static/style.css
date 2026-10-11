@@ -257,6 +257,50 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   background-image: radial-gradient(#c9d6f5 1.5px, transparent 1.5px);
   background-size: 18px 18px;
 }
+.bg-stripes {
+  background-color: #ffffff;
+  background-image: repeating-linear-gradient(90deg, #e7efff 0 12px, #ffffff 12px 24px);
+}
+.bg-diag {
+  background-color: #ffffff;
+  background-image: repeating-linear-gradient(45deg, #e6f7ec 0 10px, #ffffff 10px 20px);
+}
+.bg-cross {
+  background-color: #ffffff;
+  background-image:
+    repeating-linear-gradient(45deg, #e7efff 0 4px, transparent 4px 14px),
+    repeating-linear-gradient(-45deg, #e7efff 0 4px, transparent 4px 14px);
+}
+.bg-checks {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #eef1f6 25%, transparent 25%, transparent 75%, #eef1f6 75%),
+    linear-gradient(45deg, #eef1f6 25%, transparent 25%, transparent 75%, #eef1f6 75%);
+  background-size: 26px 26px;
+  background-position: 0 0, 13px 13px;
+}
+.bg-grid {
+  background-color: #f8faff;
+  background-image:
+    linear-gradient(#d5dff5 1px, transparent 1px),
+    linear-gradient(90deg, #d5dff5 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.bg-hearts {
+  background-color: #fdeef4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='22' height='22'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' fill='%23f7cad8'/%3E%3C/svg%3E");
+  background-size: 22px 22px;
+}
+.bg-stars {
+  background-color: #fff9e8;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='22' height='22'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z' fill='%23ffe6a8'/%3E%3C/svg%3E");
+  background-size: 22px 22px;
+}
+.bg-plus {
+  background-color: #f5f8ff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='18' height='18'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z' fill='%23dbe4f8'/%3E%3C/svg%3E");
+  background-size: 18px 18px;
+}
 
 /* Имя автора в групповом сообщении */
 .sender { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
