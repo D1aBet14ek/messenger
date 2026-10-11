@@ -413,6 +413,23 @@ def health():
     return "OK: база доступна (PostgreSQL — постоянная)"
 
 
+@app.route("/manifest.webmanifest")
+def manifest():
+    """«Паспорт» приложения: имя, иконка, цвета — нужен для установки на телефон."""
+    return Response(
+        render_template("manifest.webmanifest"),
+        mimetype="application/manifest+json",
+    )
+
+
+@app.route("/sw.js")
+def service_worker():
+    """Служебный файл приложения (для установки). На работу мессенджера не влияет."""
+    resp = Response(render_template("sw.js"), mimetype="application/javascript")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    return resp
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     """Страница регистрации: человек придумывает логин (@имя), как в Telegram."""

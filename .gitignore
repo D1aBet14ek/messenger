@@ -9,3 +9,9 @@ __pycache__/
 # Виртуальное окружение (если будем создавать)
 venv/
 .venv/
+
+# Служебные файлы сборки компьютерной программы
+desktop/build/
+desktop/dist/
+desktop/*.spec
+desktop/server.txt
