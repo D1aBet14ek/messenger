@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Профиль — Поговорим{% endblock %}
+
+{% block content %}
+<h1>Твой профиль</h1>
+
+<div class="profile-head">
+  {% if user['avatar'] %}
+    <img class="avatar img big" src="{{ url_for('avatar', user_id=user['id']) }}" alt="">
+  {% else %}
+    <span class="avatar big">{{ user['display_name'][0]|upper }}</span>
+  {% endif %}
+  <div>
+    <div class="pname">{{ user['display_name'] }}</div>
+    <div class="plogin">@{{ user['username'] }}</div>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card">
+  <label>Имя для показа
+    <input name="display_name" required maxlength="40" value="{{ user['display_name'] }}">
+  </label>
+
+  <label>О себе (описание)
+    <textarea name="bio" maxlength="300" rows="3"
+              placeholder="Пара слов о себе">{{ user['bio'] or '' }}</textarea>
+  </label>
+
+  <label>Аватар (картинка, до 2 МБ)
+    <input type="file" name="avatar" accept="image/*">
+  </label>
+
+  {% if user['avatar'] %}
+    <label class="checkline">
+      <input type="checkbox" name="remove_avatar" value="1">
+      <span>Убрать текущий аватар</span>
+    </label>
+  {% endif %}
+
+  <hr>
+
+  <p class="muted">Сменить пароль (оставь пустым, если менять не нужно):</p>
+  <label>Новый пароль
+    <input name="password" type="password" autocomplete="new-password">
+  </label>
+  <label>Повтори новый пароль
+    <input name="password2" type="password" autocomplete="new-password">
+  </label>
+
+  <button class="btn" type="submit">Сохранить</button>
+  <p class="muted"><a href="{{ url_for('users') }}">← Назад к чатам</a></p>
+</form>
+{% endblock %}

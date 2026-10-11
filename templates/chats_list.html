@@ -48,10 +48,14 @@
         {% for u in others %}
           <li>
             <a class="person" href="{{ url_for('chat', other_id=u['id']) }}" target="_top">
-              <span class="avatar">{{ u['display_name'][0]|upper }}</span>
+              {% if u['has_avatar'] %}
+                <img class="avatar img" src="{{ url_for('avatar', user_id=u['id']) }}" alt="">
+              {% else %}
+                <span class="avatar">{{ u['display_name'][0]|upper }}</span>
+              {% endif %}
               <span class="ptext">
                 <span class="pname">{{ u['display_name'] }}</span>
-                <span class="plogin">@{{ u['username'] }}</span>
+                <span class="plogin">@{{ u['username'] }}{% if u['bio'] %} · {{ u['bio'] }}{% endif %}</span>
               </span>
               <span class="parrow">→</span>
             </a>

@@ -33,11 +33,15 @@
   <ul class="member-list">
     {% for m in members %}
       <li>
-        <span class="avatar small">{{ m['display_name'][0]|upper }}</span>
+        {% if m['has_avatar'] %}
+          <img class="avatar img small" src="{{ url_for('avatar', user_id=m['user_id']) }}" alt="">
+        {% else %}
+          <span class="avatar small">{{ m['display_name'][0]|upper }}</span>
+        {% endif %}
         <span class="ptext">
           <span class="pname">{{ m['display_name'] }}
             {% if m['role'] == 'admin' %}<span class="badge">админ</span>{% endif %}</span>
-          <span class="plogin">@{{ m['username'] }}</span>
+          <span class="plogin">@{{ m['username'] }}{% if m['bio'] %} · {{ m['bio'] }}{% endif %}</span>
         </span>
         {% if is_admin and m['role'] != 'admin' %}
           <form method="post" class="inline-form"

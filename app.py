@@ -21,6 +21,7 @@ from datetime import datetime
 
 from flask import (
     Flask,
+    Response,
     flash,
     g,
     redirect,
@@ -33,6 +34,7 @@ from sqlalchemy import (
     Column,
     ForeignKey,
     Integer,
+    LargeBinary,
     MetaData,
     String,
     Table,
@@ -42,8 +44,11 @@ from sqlalchemy import (
     delete,
     func,
     insert,
+    inspect,
     or_,
     select,
+    text,
+    update,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -97,6 +102,8 @@ def load_secret_key():
 
 app = Flask(__name__)
 app.secret_key = load_secret_key()
+# Аватар не должен быть больше 2 МБ
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 
 # ---------------------------------------------------------------------------
 # 2. БАЗА ДАННЫХ
@@ -118,6 +125,9 @@ users_table = Table(
     Column("display_name", String(40), nullable=False),            # имя для показа
     Column("password_hash", Text, nullable=False),                 # отпечаток пароля
     Column("created_at", String(30), nullable=False),
+    Column("bio", Text),                                           # описание (о себе)
+    Column("avatar", LargeBinary),                                 # картинка-аватар
+    Column("avatar_mime", String(50)),                             # вид картинки (png/jpeg)
 )
 
 # Таблица «Сообщения»
@@ -163,6 +173,32 @@ group_messages_table = Table(
 )
 
 
+def ensure_columns():
+    """
+    Простая «миграция». Если база создана раньше и в таблице users нет новых
+    столбцов (bio, avatar, avatar_mime) — добавляем их на месте.
+    Работает и с SQLite, и с PostgreSQL.
+    """
+    insp = inspect(engine)
+    if not insp.has_table("users"):
+        return
+    existing = {col["name"] for col in insp.get_columns("users")}
+    # В разных базах данных свой тип для «двоичных данных»
+    blob_type = "BYTEA" if engine.dialect.name == "postgresql" else "BLOB"
+    needed = {
+        "bio": "TEXT",
+        "avatar": blob_type,
+        "avatar_mime": "VARCHAR(50)",
+    }
+    missing = {name: ddl for name, ddl in needed.items() if name not in existing}
+    if not missing:
+        return
+    with engine.begin() as conn:
+        for name, ddl in missing.items():
+            conn.execute(text("ALTER TABLE users ADD COLUMN {} {}".format(name, ddl)))
+            print("Создан новый столбец users.{}".format(name), flush=True)
+
+
 def init_db():
     """Создаём таблицы, если их ещё нет. Можно вызывать сколько угодно раз."""
     # Полезные строки для проверки в Dokploy → Logs.
@@ -185,6 +221,7 @@ def init_db():
         )
 
     metadata.create_all(engine)
+    ensure_columns()
 
 
 def get_conn():
@@ -228,6 +265,20 @@ def format_time(iso_string):
         return ""
 
 
+def user_cols():
+    """
+    Столбцы «профиля» пользователя. Картинку-аватар целиком НЕ тянем,
+    только признак has_avatar (есть он или нет) — так быстрее.
+    """
+    return [
+        users_table.c.id,
+        users_table.c.username,
+        users_table.c.display_name,
+        users_table.c.bio,
+        users_table.c.avatar.is_not(None).label("has_avatar"),
+    ]
+
+
 def current_user():
     """Возвращает данные вошедшего человека или None, если никто не вошёл."""
     uid = session.get("user_id")
@@ -235,7 +286,7 @@ def current_user():
         return None
     conn = get_conn()
     return conn.execute(
-        select(users_table).where(users_table.c.id == uid)
+        select(*user_cols()).where(users_table.c.id == uid)
     ).mappings().first()
 
 
@@ -349,10 +400,99 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/profile", methods=["GET", "POST"])
+def profile():
+    """Редактирование своего профиля: имя, описание, аватар, пароль."""
+    r = not_logged_in_redirect()
+    if r:
+        return r
+
+    me = current_user()
+    conn = get_conn()
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+
+    if request.method == "POST":
+        display_name = request.form.get("display_name", "").strip()
+        bio = request.form.get("bio", "").strip()
+        password = request.form.get("password", "")
+        password2 = request.form.get("password2", "")
+        avatar_file = request.files.get("avatar")
+        remove_avatar = request.form.get("remove_avatar")
+
+        error = None
+        if not (1 <= len(display_name) <= 40):
+            error = "Имя для показа: от 1 до 40 символов."
+        elif len(bio) > 300:
+            error = "Описание: не больше 300 символов."
+        elif password and len(password) < 6:
+            error = "Пароль: минимум 6 символов."
+        elif password != password2:
+            error = "Пароли не совпадают."
+
+        new_avatar = None
+        new_mime = None
+        if error is None and avatar_file and avatar_file.filename:
+            mime = avatar_file.mimetype or ""
+            data = avatar_file.read()
+            if not mime.startswith("image/"):
+                error = "Аватар должен быть картинкой (png, jpg, gif и т.п.)."
+            elif len(data) > 2 * 1024 * 1024:
+                error = "Картинка слишком большая (максимум 2 МБ)."
+            else:
+                new_avatar = data
+                new_mime = mime
+
+        if error is None:
+            values = {"display_name": display_name, "bio": bio}
+            if password:
+                values["password_hash"] = generate_password_hash(password)
+            if new_avatar is not None:
+                values["avatar"] = new_avatar
+                values["avatar_mime"] = new_mime
+            elif remove_avatar:
+                values["avatar"] = None
+                values["avatar_mime"] = None
+            conn.execute(
+                update(users_table).where(users_table.c.id == me["id"]).values(**values)
+            )
+            conn.commit()
+            flash("Профиль сохранён. 👍")
+            return redirect(url_for("profile"))
+
+        flash(error)
+
+    user = conn.execute(
+        select(users_table).where(users_table.c.id == me["id"])
+    ).mappings().first()
+    return render_template("profile.html", user=user)
+
+
+@app.route("/avatar/<int:user_id>")
+def avatar(user_id):
+    """Отдаёт картинку-аватар человека (или пустой ответ, если картинки нет)."""
+    conn = get_conn()
+    row = conn.execute(
+        select(users_table.c.avatar, users_table.c.avatar_mime)
+        .where(users_table.c.id == user_id)
+    ).mappings().first()
+    if row is None or row["avatar"] is None:
+        return ("", 404)
+    return Response(bytes(row["avatar"]), mimetype=row["avatar_mime"] or "image/png")
+
+
+@app.errorhandler(413)
+def avatar_too_large(error):
+    """Если картинка больше 2 МБ — покажем понятное сообщение."""
+    flash("Картинка слишком большая (максимум 2 МБ).")
+    return redirect(url_for("profile"))
+
+
 def load_chat_lists(conn, me_id):
     """Возвращает два списка для страницы чатов: (люди, мои группы)."""
     others = conn.execute(
-        select(users_table.c.id, users_table.c.username, users_table.c.display_name)
+        select(*user_cols())
         .where(users_table.c.id != me_id)
         .order_by(func.lower(users_table.c.display_name))
     ).mappings().all()
@@ -405,7 +545,7 @@ def chat(other_id):
     me = current_user()
     conn = get_conn()
     other = conn.execute(
-        select(users_table.c.id, users_table.c.username, users_table.c.display_name)
+        select(*user_cols())
         .where(users_table.c.id == other_id)
     ).mappings().first()
 
@@ -498,7 +638,7 @@ def messages(other_id):
     me = current_user()
     conn = get_conn()
     other = conn.execute(
-        select(users_table.c.id, users_table.c.username, users_table.c.display_name)
+        select(*user_cols())
         .where(users_table.c.id == other_id)
     ).mappings().first()
     if other is None or other["id"] == me["id"]:
@@ -566,7 +706,7 @@ def new_group():
     me = current_user()
     conn = get_conn()
     others = conn.execute(
-        select(users_table.c.id, users_table.c.username, users_table.c.display_name)
+        select(*user_cols())
         .where(users_table.c.id != me["id"])
         .order_by(func.lower(users_table.c.display_name))
     ).mappings().all()
@@ -665,6 +805,8 @@ def group_chat(group_id):
             group_members_table.c.role,
             users_table.c.display_name,
             users_table.c.username,
+            users_table.c.bio,
+            users_table.c.avatar.is_not(None).label("has_avatar"),
         )
         .select_from(
             group_members_table.join(
@@ -678,7 +820,7 @@ def group_chat(group_id):
     # Люди, которых ещё нет в группе (чтобы админ мог добавить)
     member_ids = {m["user_id"] for m in members}
     everybody = conn.execute(
-        select(users_table.c.id, users_table.c.username, users_table.c.display_name)
+        select(*user_cols())
         .where(users_table.c.id != me["id"])
         .order_by(func.lower(users_table.c.display_name))
     ).mappings().all()
